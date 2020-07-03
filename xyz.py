@@ -4,6 +4,8 @@
 
 import re
 import numpy as np
+from .elements import *
+from .bonds import *
 
 coord_pattern = re.compile("""\"[A-Za-z*]+\",\s*-*\d*.\d*,\s*-*\d*.\d*,\s*-*\d*.\d*""")
 ind_pattern = re.compile("{\d*,\s*\d*,\s*{\d\d*,\s*(?:\d\d*,\s*)*\d*},\s*{\d\d*,\s*(?:\d\d*,\s*)*\d*}")
@@ -34,6 +36,10 @@ class simple_mol(object):
             atom, coords = helper(coords_lines[i])
             atoms.append(atom)
             coords_all = np.concatenate((coords_all, np.array([coords])), axis=0)
+        self.mc = []
+        for i, atom in enumerate(atoms):
+            if ismetal(atom):
+                self.mc.append(i)
         self.atoms = atoms
         self.coords_all = coords_all
         return self
@@ -61,6 +67,15 @@ class simple_mol(object):
     def parse_all(self):
         self = self.get_coords()
         self = self.get_ligand_ind()
+        del self.text
         return self
 
+    
+    def get_graph(self):
+        """
+        Only support one-metal complexes currently.
+        """
+        if len(self.mc) == 1:
+            self = get_graph_by_ligands(self)
+        return self
     
