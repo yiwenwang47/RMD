@@ -75,10 +75,15 @@ class simple_mol(object):
         self.get_ligand_ind()
         del self.text
         self.get_graph()
+        self.coordination = self.graph.sum(axis=0)
+
     
     def get_bonded_atoms(self, atom_index):
         con = self.graph[atom_index]
         return np.where(con==1)[0]
+
+    def get_coordination(self, atom_index):
+        return self.graph[atom_index].sum()
 
     def init_distances(self):
         self.distances = self.graph.copy()

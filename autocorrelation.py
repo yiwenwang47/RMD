@@ -16,6 +16,9 @@ def pair_correlation(_property -> str, atom1 -> str, atom2 -> str, operation -> 
     p1, p2 = properties[_property][atom1], properties[_property][atom2]
     return operations[operation](p1, p2)
 
+def topology_ac(mol, ind1, in2, operation):
+    return operations[operation](mol.coordination[ind1], mol.coordination[ind2])
+
 
 def rac_from_atom(mol -> simple_mol, _property -> str, origin -> int, scope -> set, operation='multiply', depth=3, count=True) -> np.array:
     
@@ -29,7 +32,10 @@ def rac_from_atom(mol -> simple_mol, _property -> str, origin -> int, scope -> s
     
     d_from_origin = mol.distances[origin]
     atom1 = mol.atoms[origin]
-    feature[0] = pair_correlation(_property, atom1, atom1, operation)
+    if _property != 'topology':
+        feature[0] = pair_correlation(_property, atom1, atom1, operation)
+    else:
+        feature[0] = topology_ac(mol, origin, origin, operation)
 
     for d in range(1, depth+1):
         n_d = 0
@@ -38,7 +44,10 @@ def rac_from_atom(mol -> simple_mol, _property -> str, origin -> int, scope -> s
             targets = targets & scope
         for target in targets:
             atom2 = mol.atoms[target]
-            feature[d] += pair_correlation(_property, atom1, atom2, operation)
+            if _property != 'topology':
+                feature[d] += pair_correlation(_property, atom1, atom2, operation)
+            else:
+                feature[d] += topology_ac(mol, origin, target, operation)
             n_d += 1
         if count and n_d > 0:
             feature[d] = np.divide(feature[d], n_d)
@@ -59,7 +68,10 @@ def rac_all_atoms(mol -> simple_mol, _property -> str, scope -> set, operation='
 
     for ind in scope:
         atom = model.atoms[ind]
-        feature[0] += pair_correlation(_property, atom, atom, operation)
+        if _property != 'topology':
+            feature[0] += pair_correlation(_property, atom, atom, operation)
+        else:
+            feature[0] = topology_ac(mol, ind, ind, operation)
 
     for d in range(1, depth+1):
         n_d = 0
@@ -68,7 +80,10 @@ def rac_all_atoms(mol -> simple_mol, _property -> str, scope -> set, operation='
             ind1, ind2 = targets[0][i]], targets[1][i]]
             if ind1 in scope and ind2 in scope:
                 atom1, atom2 = model.atoms[ind1], model.atoms[ind2]
-                feature[d] += pair_correlation(_property, atom1, atom2, operation)
+                if _property != 'topology':
+                    feature[d] += pair_correlation(_property, atom1, atom2, operation)
+                else:
+                    feature[d] += topology_ac(mol, ind1, ind2, operation)
                 n_d += 1
         if count and n_d > 0:
             feature[d] = np.divide(feature[d], n_d)
