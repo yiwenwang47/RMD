@@ -64,11 +64,20 @@ class simple_mol(object):
             self.ligand_ind.append(ind)
 
     def get_graph(self):
+
         """
         Only supports one-metal complexes currently.
         """
+
         if len(self.mc) == 1:
             self.graph = get_graph_by_ligands(self)
+    
+    def init_distances(self):
+        self.distances = self.graph.copy()
+
+    def get_all_distances(self, depth: int):
+        for atom in range(self.natoms):
+            bfs(self, atom, depth)
 
     def parse_all(self):
         self.get_coords()
@@ -76,18 +85,8 @@ class simple_mol(object):
         del self.text
         self.get_graph()
         self.coordination = self.graph.sum(axis=0)
-
+        self.init_distances()
     
-    def get_bonded_atoms(self, atom_index):
+    def get_bonded_atoms(self, atom_index: int):
         con = self.graph[atom_index]
         return np.where(con==1)[0]
-
-    def get_coordination(self, atom_index):
-        return self.graph[atom_index].sum()
-
-    def init_distances(self):
-        self.distances = self.graph.copy()
-
-    def get_all_distances(self, depth):
-        for atom in range(self.natoms):
-            bfs(self, atom, depth)

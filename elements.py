@@ -120,13 +120,14 @@ metalslist = ['Li', 'li', 'LI', 'lithium', 'Be', 'be', 'BE', 'beryllium',
     'Lr', 'lr', 'LR', 'lawrencium'
 ]
 
-def ismetal(atom):
+def ismetal(atom: str) -> bool:
     return atom in metalslist
 
 covalent_radius = lambda atom: elementdict[atom][2]
 
 properties = {
     'covalent radius': covalent_radius,
-    'electronegativity': lambda x: endict[x],
-    
+    'electronegativity': lambda atom: endict[atom],
+    'atomic number': lambda atom: elementdict[atom][1],
+    'identity': lambda atom: 1
 }

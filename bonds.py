@@ -13,7 +13,7 @@ def connect(graph, i, j):
     graph[i][j] = 1
     graph[j][i] = 1
 
-def get_bond_cutoff(a1 -> str, a2 -> str) -> float:
+def get_bond_cutoff(a1: str, a2: str) -> float:
     a1, a2 = sorted([a1, a2])
     r1, r2 = covalent_radius(a1), covalent_radius(a2)
     cutoff = 1.15 * (r1 + r2)
@@ -30,7 +30,12 @@ def get_bond_cutoff(a1 -> str, a2 -> str) -> float:
         cutoff = 0.95 * (r1 + r2)
     return cutoff
 
-def get_cutoffs(atoms -> list) -> defaultdict:
+def get_cutoffs(atoms: list) -> defaultdict:
+
+    """
+    Calculate bond length cutoffs for all possible atom pairs.
+    """
+
     unique = list(set(atoms))
     cutoffs = defaultdict(dict)
     n = len(unique)
@@ -42,7 +47,8 @@ def get_cutoffs(atoms -> list) -> defaultdict:
             cutoffs[a2][a1] = cutoff
     return cutoffs
 
-def get_graph_by_ligands(mol) -> np.ndarray:
+def get_graph_by_ligands(mol: simple_mol) -> np.ndarray:
+
     """
     This takes advantage of the fact that the indices of the atoms in each ligand are separated from those of any other ligand.
     Assuming only one metal center.
@@ -69,7 +75,13 @@ def get_graph_by_ligands(mol) -> np.ndarray:
                     connect(graph, ligand_ind[j], ligand_ind[k])
     return graph
 
-def bfs(mol -> simple_mol, origin -> int, depth -> int):
+def bfs(mol: simple_mol, origin: int, depth: int):
+
+    """
+    A breadth-first search algorithms to find the shortest-path distances between any two atoms.
+    Only search for distances up to the given depth.
+    """
+
     all_active = set([origin])
     current_active = set([origin])
     for distance in range(1, depth+1):
