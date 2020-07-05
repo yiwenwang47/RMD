@@ -2,6 +2,7 @@
 # Following the conventional approach of setting bond length cutoffs.
 
 from .elements import *
+from .molecule import *
 from collections import defaultdict
 from scipy.spatial import distance_matrix
 import numpy as np
@@ -12,7 +13,7 @@ def connect(graph, i, j):
     graph[i][j] = 1
     graph[j][i] = 1
 
-def get_bond_cutoff(a1, a2):
+def get_bond_cutoff(a1 -> str, a2 -> str) -> float:
     a1, a2 = sorted([a1, a2])
     r1, r2 = covalent_radius(a1), covalent_radius(a2)
     cutoff = 1.15 * (r1 + r2)
@@ -29,7 +30,7 @@ def get_bond_cutoff(a1, a2):
         cutoff = 0.95 * (r1 + r2)
     return cutoff
 
-def get_cutoffs(atoms):
+def get_cutoffs(atoms -> list) -> defaultdict:
     unique = list(set(atoms))
     cutoffs = defaultdict(dict)
     n = len(unique)
@@ -41,7 +42,7 @@ def get_cutoffs(atoms):
             cutoffs[a2][a1] = cutoff
     return cutoffs
 
-def get_graph_by_ligands(mol):
+def get_graph_by_ligands(mol) -> np.ndarray:
     """
     This takes advantage of the fact that the indices of the atoms in each ligand are separated from those of any other ligand.
     Assuming only one metal center.
@@ -66,5 +67,18 @@ def get_graph_by_ligands(mol):
             for k in range(j+1, l):
                 if matrix[j][k] <= cutoffs[ligand_atoms[j]][ligand_atoms[k]]:
                     connect(graph, ligand_ind[j], ligand_ind[k])
-    mol.graph = graph
-    return mol
+    return graph
+
+def bfs(mol -> simple_mol, origin -> int, depth -> int):
+    all_active = set([origin])
+    current_active = set([origin])
+    for distance in range(1, depth+1):
+        new_active = set([])
+        for atom in current_active:
+            new_active.update(mol.get_bonded_atoms(atom))
+        new_active -= all_active
+        if distance > 1:
+            for atom in new_active:
+                mol.distances[origin][atom] = distance
+        all_active.update(new_active)
+        current_active = new_active

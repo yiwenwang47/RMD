@@ -41,8 +41,8 @@ class simple_mol(object):
             if ismetal(atom):
                 self.mc.append(i)
         self.atoms = atoms
+        self.natoms = len(atoms)
         self.coords_all = coords_all
-        return self
     
     def get_ligand_ind(self):
 
@@ -62,20 +62,27 @@ class simple_mol(object):
             lcs, ind = helper(line)
             self.lcs.append(lcs)
             self.ligand_ind.append(ind)
-        return self
 
-    def parse_all(self):
-        self = self.get_coords()
-        self = self.get_ligand_ind()
-        del self.text
-        return self
-
-    
     def get_graph(self):
         """
-        Only support one-metal complexes currently.
+        Only supports one-metal complexes currently.
         """
         if len(self.mc) == 1:
-            self = get_graph_by_ligands(self)
-        return self
+            self.graph = get_graph_by_ligands(self)
+
+    def parse_all(self):
+        self.get_coords()
+        self.get_ligand_ind()
+        del self.text
+        self.get_graph()
     
+    def get_bonded_atoms(self, atom_index):
+        con = self.graph[atom_index]
+        return np.where(con==1)[0]
+
+    def init_distances(self):
+        self.distances = self.graph.copy()
+
+    def get_all_distances(self, depth):
+        for atom in range(self.natoms):
+            bfs(self, atom, depth)

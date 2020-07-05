@@ -1,1 +1,1 @@
-from .xyz import *
+from .molecule import *

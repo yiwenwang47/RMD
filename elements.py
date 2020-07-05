@@ -124,3 +124,9 @@ def ismetal(atom):
     return atom in metalslist
 
 covalent_radius = lambda atom: elementdict[atom][2]
+
+properties = {
+    'covalent radius': covalent_radius,
+    'electronegativity': lambda x: endict[x],
+    
+}
