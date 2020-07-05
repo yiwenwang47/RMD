@@ -1,7 +1,6 @@
 # Revised autocorrelation descriptors. Based on graph of connectivities between atoms.
 # Assuming the simple_mol object already has attributes graph and distances.
 from .elements import *
-from .bonds import *
 from .molecule import *
 import numpy as np
 
