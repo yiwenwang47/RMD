@@ -157,7 +157,7 @@ def get_graph_by_ligands(mol: simple_mol) -> np.ndarray:
         ligand_ind = mol.ligand_ind[i]
         ligand_coords = mol.coords_all[ligand_ind]
         matrix = distance_matrix(ligand_coords, ligand_coords)
-        ligand_atoms = get_(mol.atoms, ligand_ind)
+        ligand_atoms = _get(mol.atoms, ligand_ind)
         l = len(ligand_atoms)
         for j in range(l):
             for k in range(j+1, l):

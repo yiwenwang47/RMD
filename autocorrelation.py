@@ -5,17 +5,17 @@ from .molecule import *
 import numpy as np
 
 operations = {
-    'add': lambda x, y: np.add(x, y)
-    'subtract': lambda x, y: np.add(x, -y)
-    'multiply': lambda x, y: np.multiply(x, y)
-    'multiply': lambda x, y: np.divide(x, y)
+    'add': lambda x, y: np.add(x, y),
+    'subtract': lambda x, y: np.add(x, -y),
+    'multiply': lambda x, y: np.multiply(x, y),
+    'divide': lambda x, y: np.divide(x, y)
 }
 
 def pair_correlation(_property: str, atom1: str, atom2: str, operation: str):
-    p1, p2 = properties[_property][atom1], properties[_property][atom2]
+    p1, p2 = properties[_property](atom1), properties[_property](atom2)
     return operations[operation](p1, p2)
 
-def topology_ac(mol: simple_mol, ind1: int, ind2: int, operation: string):
+def topology_ac(mol: simple_mol, ind1: int, ind2: int, operation: str):
     return operations[operation](mol.coordination[ind1], mol.coordination[ind2])
 
 
@@ -27,7 +27,7 @@ def rac_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, oper
     Pass scope = set([]) to get a full-scope rac feature.
     """
 
-    feature = np.zeros(depth+1).astype(np.float16)
+    feature = np.zeros(depth+1).astype(np.float)
     
     d_from_origin = mol.distances[origin]
     atom1 = mol.atoms[origin]
@@ -63,10 +63,10 @@ def rac_all_atoms(mol:  simple_mol, _property: str, scope: set, operation='multi
     if not scope:
         scope = set(range(mol.natoms))
     
-    feature = np.zeros(depth+1).astype(np.float16)
+    feature = np.zeros(depth+1).astype(np.float)
 
     for ind in scope:
-        atom = model.atoms[ind]
+        atom = mol.atoms[ind]
         if _property != 'topology':
             feature[0] = pair_correlation(_property, atom, atom, operation)
         else:
@@ -78,7 +78,7 @@ def rac_all_atoms(mol:  simple_mol, _property: str, scope: set, operation='multi
         for i in range(len(targets[0])):
             ind1, ind2 = targets[0][i], targets[1][i]
             if ind1 in scope and ind2 in scope:
-                atom1, atom2 = model.atoms[ind1], model.atoms[ind2]
+                atom1, atom2 = mol.atoms[ind1], mol.atoms[ind2]
                 if _property != 'topology':
                     feature[d] += pair_correlation(_property, atom1, atom2, operation)
                 else:
@@ -86,6 +86,7 @@ def rac_all_atoms(mol:  simple_mol, _property: str, scope: set, operation='multi
                 n_d += 1
         if count and n_d > 0:
             feature[d] = np.divide(feature[d], n_d)
-        feature[d] = np.divide(feature[d], 2) #because any atom pair (i,j) is counted twice
+        if not count:
+            feature[d] = np.divide(feature[d], 2) #because any atom pair (i,j) is counted twice
 
     return feature
