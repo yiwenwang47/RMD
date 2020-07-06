@@ -69,12 +69,10 @@ class simple_mol(object):
     def get_graph(self):
 
         """
-        Only supports one-metal complexes currently.
         Assuming indices of ligand atoms are available.
         """
 
-        if len(self.mcs) == 1:
-            self.graph = get_graph_by_ligands(self)
+        self.graph = get_graph_by_ligands(self)
     
     def init_distances(self):
         self.distances = self.graph.copy()
@@ -88,7 +86,7 @@ class simple_mol(object):
         for atom in range(self.natoms):
             bfs_distances(self, atom, depth)
 
-    def parse_all(self):
+    def parse_with_ind(self):
 
         """
         The simplest case where indices of ligand atoms are available. Call this first before calculating RAC features.
@@ -101,9 +99,10 @@ class simple_mol(object):
         self.coordination = self.graph.sum(axis=0)
         self.init_distances()
     
-    def parse_without_ind(self):
+    def parse_all(self):
 
         """
+        A more general case.
         Unfinished.
         Need to write a function to figure out how to divide up the graph.
         """
@@ -111,12 +110,20 @@ class simple_mol(object):
         self.get_coords()
         self.graph = get_graph_full_scope(self)
         del self.text
+        bfs_ligands(self)
         self.coordination = self.graph.sum(axis=0)
+        self.init_distances()
 
     def get_bonded_atoms(self, atom_index: int):
         con = self.graph[atom_index]
         return np.where(con==1)[0]
 
+    def get_bonded_atoms_multiple(self, atom_ind: list) -> list:
+        ind = set(atom_ind)
+        bonded = set()
+        for i in ind:
+            bonded.update(self.get_bonded_atoms(i))
+        return list(bonded)
 
 # This following functions are devoted to figuring out the connectivities and distances.
 # Following the conventional approach of setting bond length cutoffs.
@@ -169,17 +176,17 @@ def get_cutoffs(atoms: list) -> defaultdict:
     return cutoffs
 
 def get_graph_full_scope(mol: simple_mol) -> np.ndarray:
+
     """
     If the indices of the ligand atoms are not available, use this function.
     """
 
     flatten = lambda l: [item for sublist in l for item in sublist]
-    n = len(mol.atoms)
+    n = mol.natoms
     graph = np.zeros((n, n))
     cutoffs = get_cutoffs(mol.atoms)
 
     matrix = distance_matrix(mol.coords_all, mol.coords_all)
-    n = mol.natoms
 
     for i in range(n):
         for j in range(i+1, n):
@@ -196,7 +203,7 @@ def get_graph_by_ligands(mol: simple_mol) -> np.ndarray:
     """
 
     flatten = lambda l: [item for sublist in l for item in sublist]
-    n = len(mol.atoms)
+    n = mol.natoms
     graph = np.zeros((n, n))
     cutoffs = get_cutoffs(mol.atoms)
 
@@ -231,13 +238,31 @@ def bfs_distances(mol: simple_mol, origin: int, depth: int):
 
     all_active = set([origin])
     current_active = set([origin])
+
     for distance in range(1, depth+1):
-        new_active = set([])
-        for atom in current_active:
-            new_active.update(mol.get_bonded_atoms(atom))
+        new_active = set(mol.get_bonded_atoms_multiple(list(current_active)))
         new_active -= all_active
         if distance > 1:
             for atom in new_active:
                 mol.distances[origin][atom] = distance
         all_active.update(new_active)
         current_active = new_active
+
+def bfs_ligands(mol: simple_mol):
+
+    """
+    Unifinished
+    A breadth-first search algorithm to find out which atoms belong to the same ligand.
+    """
+
+    graph_copy = mol.graph.copy()
+
+    for i in mol.mcs:
+        graph_copy[i] = 0
+        graph_copy[:, i] = 0
+
+    tmp_lcs = set(mol.get_bonded_atoms_multiple(mol.mcs))
+    lcs = []
+
+    while tmp_lcs:
+        pass
