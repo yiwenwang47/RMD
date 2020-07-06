@@ -80,10 +80,20 @@ class simple_mol(object):
         self.distances = self.graph.copy()
 
     def get_all_distances(self, depth: int):
+
+        """
+        Only calculates shortest-path distances up to depth because we do not care about long range autocorrelations yet.
+        """
+
         for atom in range(self.natoms):
-            bfs(self, atom, depth)
+            bfs_distances(self, atom, depth)
 
     def parse_all(self):
+
+        """
+        The simplest case where indices of ligand atoms are available. Call this first before calculating RAC features.
+        """
+
         self.get_coords()
         self.get_ligand_ind()
         del self.text
@@ -92,10 +102,12 @@ class simple_mol(object):
         self.init_distances()
     
     def parse_without_ind(self):
+
         """
         Unfinished.
         Need to write a function to figure out how to divide up the graph.
         """
+
         self.get_coords()
         self.graph = get_graph_full_scope(self)
         del self.text
@@ -116,6 +128,13 @@ def _connect(graph, i, j):
     graph[j][i] = 1
 
 def get_bond_cutoff(a1: str, a2: str) -> float:
+
+    """
+    Not sure if this works correctly for Cl and Br.
+    Needs a sanity check on some complexes.
+    Probably works correctly for S.
+    """
+
     a1, a2 = sorted([a1, a2])
     r1, r2 = covalent_radius(a1), covalent_radius(a2)
     cutoff = 1.15 * (r1 + r2)
@@ -203,7 +222,7 @@ def get_graph_by_ligands(mol: simple_mol) -> np.ndarray:
                     _connect(graph, ligand_ind[j], ligand_ind[k])
     return graph
 
-def bfs(mol: simple_mol, origin: int, depth: int):
+def bfs_distances(mol: simple_mol, origin: int, depth: int):
 
     """
     A breadth-first search algorithm to find the shortest-path distances between any two atoms.
