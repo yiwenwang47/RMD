@@ -18,7 +18,6 @@ def pair_correlation(_property: str, atom1: str, atom2: str, operation: str):
 def topology_ac(mol: simple_mol, ind1: int, ind2: int, operation: str):
     return operations[operation](mol.coordination[ind1], mol.coordination[ind2])
 
-
 def rac_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, operation='multiply', depth=3, count=True) -> np.array:
     
     """

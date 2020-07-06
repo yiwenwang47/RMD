@@ -39,10 +39,10 @@ class simple_mol(object):
             atom, coords = helper(coords_lines[i])
             atoms.append(atom)
             coords_all = np.concatenate((coords_all, np.array([coords])), axis=0)
-        self.mc = []
+        self.mcs = []
         for i, atom in enumerate(atoms):
             if ismetal(atom):
-                self.mc.append(i)
+                self.mcs.append(i)
         self.atoms = atoms
         self.natoms = len(atoms)
         self.coords_all = coords_all
@@ -50,7 +50,7 @@ class simple_mol(object):
     def get_ligand_ind(self):
 
         """
-        Parse the ligand indices from the xyz file.
+        Parse the ligand indices from the xyz file. This only works for the very specific format that we have right now.
         """
 
         ind_lines = ind_pattern.findall(self.text)
@@ -70,9 +70,10 @@ class simple_mol(object):
 
         """
         Only supports one-metal complexes currently.
+        Assuming indices of ligand atoms are available.
         """
 
-        if len(self.mc) == 1:
+        if len(self.mcs) == 1:
             self.graph = get_graph_by_ligands(self)
     
     def init_distances(self):
@@ -90,6 +91,16 @@ class simple_mol(object):
         self.coordination = self.graph.sum(axis=0)
         self.init_distances()
     
+    def parse_without_ind(self):
+        """
+        Unfinished.
+        Need to write a function to figure out how to divide up the graph.
+        """
+        self.get_coords()
+        self.graph = get_graph_full_scope(self)
+        del self.text
+        self.coordination = self.graph.sum(axis=0)
+
     def get_bonded_atoms(self, atom_index: int):
         con = self.graph[atom_index]
         return np.where(con==1)[0]
@@ -138,20 +149,47 @@ def get_cutoffs(atoms: list) -> defaultdict:
             cutoffs[a2][a1] = cutoff
     return cutoffs
 
-def get_graph_by_ligands(mol: simple_mol) -> np.ndarray:
-
+def get_graph_full_scope(mol: simple_mol) -> np.ndarray:
     """
-    This takes advantage of the fact that the indices of the atoms in each ligand are separated from those of any other ligand.
-    Assuming only one metal center.
+    If the indices of the ligand atoms are not available, use this function.
     """
 
     flatten = lambda l: [item for sublist in l for item in sublist]
     n = len(mol.atoms)
     graph = np.zeros((n, n))
-    for j in flatten(mol.lcs):
-        _connect(graph, mol.mc[0], j)
-    
     cutoffs = get_cutoffs(mol.atoms)
+
+    matrix = distance_matrix(mol.coords_all, mol.coords_all)
+    n = mol.natoms
+
+    for i in range(n):
+        for j in range(i+1, n):
+            atom_i, atom_j = mol.atoms[i], mol.atoms[j]
+            if matrix[i][j] <= cutoffs[atom_i][atom_j]:
+                _connect(graph, i, j)
+    return graph
+
+def get_graph_by_ligands(mol: simple_mol) -> np.ndarray:
+
+    """
+    This takes advantage of the fact that the indices of the atoms in each ligand are separated from those of any other ligand.
+    Accommodates complexes with any number of metal centers.
+    """
+
+    flatten = lambda l: [item for sublist in l for item in sublist]
+    n = len(mol.atoms)
+    graph = np.zeros((n, n))
+    cutoffs = get_cutoffs(mol.atoms)
+
+    mcs = mol.mcs
+    lcs = flatten(mol.lcs)
+    matrix = distance_matrix(mol.coords_all[mcs], mol.coords_all[lcs])
+
+    for i, ind_i in enumerate(mcs):
+        for j, ind_j in enumerate(lcs):
+            atom_i, atom_j = mol.atoms[ind_i], mol.atoms[ind_j]
+            if matrix[i][j] <= cutoffs[atom_i][atom_j]:
+                _connect(graph, ind_i, ind_j)
     
     for i in range(len(mol.ligand_ind)):
         ligand_ind = mol.ligand_ind[i]
@@ -168,8 +206,8 @@ def get_graph_by_ligands(mol: simple_mol) -> np.ndarray:
 def bfs(mol: simple_mol, origin: int, depth: int):
 
     """
-    A breadth-first search algorithms to find the shortest-path distances between any two atoms.
-    Only search for distances up to the given depth.
+    A breadth-first search algorithm to find the shortest-path distances between any two atoms.
+    Only searches for distances up to the given depth.
     """
 
     all_active = set([origin])
