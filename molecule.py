@@ -289,3 +289,17 @@ def determine_CN_NN(mol: simple_mol):
             mol.CN.append(i)
         else:
             mol.NN.append(i)
+
+def get_mol(filename: str, with_ind=True, depth=5) -> simple_mol:
+
+    """
+    Creates a simple_mol object from a xyz file.
+    """
+
+    mol = simple_mol(filename)
+    if with_ind:
+        mol.parse_with_ind()
+    else:
+        mol.parse_all()
+    mol.get_all_distances(depth)
+    return mol

@@ -12,6 +12,22 @@ operations = {
     'divide': lambda x, y: np.divide(x, y)
 }
 
+operation_name = {
+    'add': 'sum',
+    'subtract': 'diff',
+    'multiply': 'prod',
+    'divide': 'ratio'
+}
+
+def feature_name(start, scope, _property, operation, depth):
+
+    """
+    Gives feature name based on all specifications. 
+    I try to make them as self-explanatory as possible. 
+    """
+
+    return '_'.join([start, scope, property_notation[_property], operation_name[operation], str(depth)])
+
 def pair_correlation(_property: str, atom1: str, atom2: str, operation: str):
     p1, p2 = properties[_property](atom1), properties[_property](atom2)
     return operations[operation](p1, p2)
@@ -23,8 +39,8 @@ def rac_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, oper
     
     """
     Limiting the first atom in any atom pair to the given origin atom. 
-    In other words, this is intened for RACs starting from lc or mc.
-    Pass scope = set([]) to get a full-scope rac feature.
+    In other words, this is intended for RACs starting from lc or mc.
+    Pass scope = set() to get a full-scope rac feature.
     """
 
     feature = np.zeros(depth+1).astype(np.float)
@@ -50,6 +66,9 @@ def rac_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, oper
             n_d += 1
         if average and n_d > 0:
             feature[d] = np.divide(feature[d], n_d)
+
+    if operation == 'subtract' or operation == 'divide':
+        return feature[1:] #Because zero depth is trivial
     
     return feature
 
@@ -57,7 +76,7 @@ def rac_all_atoms(mol:  simple_mol, _property: str, scope: set, operation='multi
      
     """
     Does not only start from any specific center.
-    Pass scope = set([]) to get a full-scope rac feature.
+    Pass scope = set() to get a full-scope rac feature.
     """
 
     if not scope:
@@ -89,6 +108,9 @@ def rac_all_atoms(mol:  simple_mol, _property: str, scope: set, operation='multi
         if not average:
             feature[d] = np.divide(feature[d], 2) #because any atom pair (i,j) is counted twice
 
+    if operation == 'subtract' or operation == 'divide':
+        return feature[1:] #because zero depth is trivial
+
     return feature
 
 def rac_for_CN_NN(mol: simple_mol, depth=3) -> np.array:
@@ -97,10 +119,15 @@ def rac_for_CN_NN(mol: simple_mol, depth=3) -> np.array:
     A modified version of the original RAC-155.
     Discriminating between axial and equatorial ligands is meanningless. In our case, we identify CN and NN ligands instead.
     The start/scope definitions we adopt are:
+    f/all, mc/all, lc/CN, lc/NN, f/CN, f/NN for product RACs
+    mc/all, lc/CN, lc/NN for difference RACs
+
 
     Also, the original RAC-155 failed to recognize the difference between averaging over all counted atom pairs and not doing so.
     For example, it would not make sense to average 'identity', but we probably should average 'electronegativity'. 
     This would be specified below.
+
+    According to J.P Janet et al.(2017), some of the features are trivial. But for now, we will not exclude them.
 
     Unfinished.
     """

@@ -57,7 +57,6 @@ endict = {"H": 2.20, "He": 4.16,
 # Polarizability (alpha) 
 # From https://www.tandfonline.com/doi/full/10.1080/00268976.2018.1535143
 # Last accessed 4/28/20
-
 poldict = {"H": 4.50711, "He": 1.38375, 
            "Li": 164.1125, "Be": 37.74, "B": 20.5, "C": 11.3, "N": 7.4,
            "O":5.3, "F": 3.74, "Ne": 2.66, "Na": 162.7, "Mg":71.2, "Al": 57.8, "Si": 37.3, "P": 25, 
@@ -123,11 +122,23 @@ metalslist = ['Li', 'li', 'LI', 'lithium', 'Be', 'be', 'BE', 'beryllium',
 def ismetal(atom: str) -> bool:
     return atom in metalslist
 
+# The following functions and dictionaries are intended for autocorrelation.
+
 covalent_radius = lambda atom: elementdict[atom][2]
 
 properties = {
-    'covalent radius': covalent_radius,
     'electronegativity': lambda atom: endict[atom],
     'atomic number': lambda atom: elementdict[atom][1],
-    'identity': lambda atom: 1
+    'identity': lambda atom: 1,
+    'covalent radius': covalent_radius,
+    'polarizability': lambda atom :poldict[atom]
+}
+
+property_notation = {
+    'electronegativity': 'chi',
+    'atomic number': 'Z',
+    'identity': "I",
+    'covalent radius': 'S',
+    'topology': "T",
+    'polarizability': "alpha"
 }
