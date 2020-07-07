@@ -251,18 +251,32 @@ def bfs_distances(mol: simple_mol, origin: int, depth: int):
 def bfs_ligands(mol: simple_mol):
 
     """
-    Unifinished
     A breadth-first search algorithm to find out which atoms belong to the same ligand.
     """
 
+    mol.lcs = []
+    mol.ligand_ind = []
+
     graph_copy = mol.graph.copy()
-
-    for i in mol.mcs:
-        graph_copy[i] = 0
-        graph_copy[:, i] = 0
-
     tmp_lcs = set(mol.get_bonded_atoms_multiple(mol.mcs))
     lcs = []
+    
+    for i in mol.mcs:
+        mol.graph[i] = 0
+        mol.graph[:, i] = 0
 
     while tmp_lcs:
-        pass
+        lc = list(tmp_lcs)[0]
+        ligand = set([lc])
+        next = set(mol.get_bonded_atoms(lc))
+        next -= ligand
+        while next:
+            ligand.update(next)
+            next = set(mol.get_bonded_atoms_multiple(next))
+            next -= ligand
+        lc = list(ligand & tmp_lcs)
+        ligand = list(ligand)
+        mol.lcs.append(lc)
+        mol.ligand_ind.append(ligand)
+    
+    mol.graph = graph_copy
