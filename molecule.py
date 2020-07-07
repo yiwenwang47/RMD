@@ -260,7 +260,7 @@ def bfs_ligands(mol: simple_mol):
     graph_copy = mol.graph.copy()
     tmp_lcs = set(mol.get_bonded_atoms_multiple(mol.mcs))
     lcs = []
-    
+
     for i in mol.mcs:
         mol.graph[i] = 0
         mol.graph[:, i] = 0
@@ -280,3 +280,22 @@ def bfs_ligands(mol: simple_mol):
         mol.ligand_ind.append(ligand)
     
     mol.graph = graph_copy
+
+def determine_CN_NN(mol: simple_mol):
+
+    """
+    Determines which ligands are CN/NN.
+
+    Example:
+    mol.CN = [0, 1]
+    mol.NN = [0]
+    """
+
+    mol.CN = []
+    mol.NN = []
+
+    for i, lc in enumerate(mol.lcs):
+        if sorted([mol.atoms[lc[0]], mol.atoms[lc[1]]]) == ['C', 'N']:
+            mol.CN.append(i)
+        else:
+            mol.NN.append(i)
