@@ -1,5 +1,6 @@
 # Revised autocorrelation descriptors. Based on graph of connectivities between atoms.
 # Assuming the simple_mol object already has attributes graph and distances.
+
 from .elements import *
 from .molecule import *
 import numpy as np
@@ -18,7 +19,7 @@ def pair_correlation(_property: str, atom1: str, atom2: str, operation: str):
 def topology_ac(mol: simple_mol, ind1: int, ind2: int, operation: str):
     return operations[operation](mol.coordination[ind1], mol.coordination[ind2])
 
-def rac_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, operation='multiply', depth=3, count=True) -> np.array:
+def rac_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, operation='multiply', depth=3, average=True) -> np.array:
     
     """
     Limiting the first atom in any atom pair to the given origin atom. 
@@ -47,12 +48,12 @@ def rac_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, oper
             else:
                 feature[d] += topology_ac(mol, origin, target, operation)
             n_d += 1
-        if count and n_d > 0:
+        if average and n_d > 0:
             feature[d] = np.divide(feature[d], n_d)
     
     return feature
 
-def rac_all_atoms(mol:  simple_mol, _property: str, scope: set, operation='multiply', depth=3, count=True) -> np.array:
+def rac_all_atoms(mol:  simple_mol, _property: str, scope: set, operation='multiply', depth=3, average=True) -> np.array:
      
     """
     Does not only start from any specific center.
@@ -83,9 +84,27 @@ def rac_all_atoms(mol:  simple_mol, _property: str, scope: set, operation='multi
                 else:
                     feature[d] += topology_ac(mol, ind1, ind2, operation)
                 n_d += 1
-        if count and n_d > 0:
+        if average and n_d > 0:
             feature[d] = np.divide(feature[d], n_d)
-        if not count:
+        if not average:
             feature[d] = np.divide(feature[d], 2) #because any atom pair (i,j) is counted twice
 
     return feature
+
+def rac_for_CN_NN(mol: simple_mol, depth=3) -> np.array:
+
+    """
+    A modified version of the original RAC-155.
+    Discriminating between axial and equatorial ligands is meanningless. In our case, we identify CN and NN ligands instead.
+    The start/scope definitions we adopt are:
+
+    Also, the original RAC-155 failed to recognize the difference between averaging over all counted atom pairs and not doing so.
+    For example, it would not make sense to average 'identity', but we probably should average 'electronegativity'. 
+    This would be specified below.
+
+    Unfinished.
+    """
+
+    full_feature = np.zeros(depth)
+
+    return full_feature
