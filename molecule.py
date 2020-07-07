@@ -36,6 +36,8 @@ class simple_mol(object):
         atoms = [atom]
         coords_all = np.array([coords])
         self.mcs = []
+        if ismetal(atom):
+            self.mcs.append(0)
         for i in range(1, len(coords_lines)):
             atom, coords = helper(coords_lines[i])
             atoms.append(atom)
