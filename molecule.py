@@ -5,6 +5,7 @@ from collections import defaultdict
 from scipy.spatial import distance_matrix
 
 coord_pattern = re.compile("""\"[A-Za-z*]+\",\s*-*\d*.\d*,\s*-*\d*.\d*,\s*-*\d*.\d*""")
+coord_pattern_2 = re.compile("""[A-Z][a-z]*\s\s*-*\d*.\d*\s*-*\d*.\d*\s*-*\d*.\d*""")
 ind_pattern = re.compile("{\d*,\s*\d*,\s*{\d\d*,\s*(?:\d\d*,\s*)*\d*},\s*{\d\d*,\s*(?:\d\d*,\s*)*\d*}")
 
 class simple_mol(object):
@@ -17,18 +18,19 @@ class simple_mol(object):
 
     def __init__(self, filename: str):
         f = open(filename, 'r')
-        self.text = f.read().replace('\n', '')
+        self.text = f.read().replace('\n', ' ')
     
-    def get_coords(self):
+    def get_coords(self, with_ind=True):
 
         """
         Parse the coordinates from the xyz file.
         """
-
-        coords_lines = coord_pattern.findall(self.text)
+        if with_ind:
+            coords_lines = coord_pattern.findall(self.text)
+        else:
+            coords_lines = coord_pattern_2.findall(self.text)
         def helper(line):
-            line = line.replace('"', '')
-            line = line.split(',')
+            line = line.translate({ord(i): None for i in '",'}).split()
             atom = line[0]
             coords = np.array([float(line[i]) for i in range(1,4)])
             return atom, coords
@@ -99,7 +101,7 @@ class simple_mol(object):
         A more general case.
         """
 
-        self.get_coords()
+        self.get_coords(with_ind=False)
         del self.text
         self.graph = get_graph_full_scope(self)
         bfs_ligands(self)
