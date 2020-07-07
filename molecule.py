@@ -35,14 +35,14 @@ class simple_mol(object):
         atom, coords = helper(coords_lines[0])
         atoms = [atom]
         coords_all = np.array([coords])
+        self.mcs = []
         for i in range(1, len(coords_lines)):
             atom, coords = helper(coords_lines[i])
             atoms.append(atom)
-            coords_all = np.concatenate((coords_all, np.array([coords])), axis=0)
-        self.mcs = []
-        for i, atom in enumerate(atoms):
             if ismetal(atom):
                 self.mcs.append(i)
+            coords_all = np.concatenate((coords_all, np.array([coords])), axis=0)
+       
         self.atoms = atoms
         self.natoms = len(atoms)
         self.coords_all = coords_all
@@ -66,14 +66,6 @@ class simple_mol(object):
             self.lcs.append(lcs)
             self.ligand_ind.append(ind)
 
-    def get_graph(self):
-
-        """
-        Assuming indices of ligand atoms are available.
-        """
-
-        self.graph = get_graph_by_ligands(self)
-    
     def init_distances(self):
         self.distances = self.graph.copy()
 
@@ -95,7 +87,7 @@ class simple_mol(object):
         self.get_coords()
         self.get_ligand_ind()
         del self.text
-        self.get_graph()
+        self.graph = get_graph_by_ligands(self)
         self.coordination = self.graph.sum(axis=0)
         self.init_distances()
     
@@ -103,13 +95,11 @@ class simple_mol(object):
 
         """
         A more general case.
-        Unfinished.
-        Need to write a function to figure out how to divide up the graph.
         """
 
         self.get_coords()
-        self.graph = get_graph_full_scope(self)
         del self.text
+        self.graph = get_graph_full_scope(self)
         bfs_ligands(self)
         self.coordination = self.graph.sum(axis=0)
         self.init_distances()
@@ -260,7 +250,7 @@ def bfs_ligands(mol: simple_mol):
     graph_copy = mol.graph.copy()
     tmp_lcs = set(mol.get_bonded_atoms_multiple(mol.mcs))
     lcs = []
-
+    
     for i in mol.mcs:
         mol.graph[i] = 0
         mol.graph[:, i] = 0
@@ -268,16 +258,14 @@ def bfs_ligands(mol: simple_mol):
     while tmp_lcs:
         lc = list(tmp_lcs)[0]
         ligand = set([lc])
-        next = set(mol.get_bonded_atoms(lc))
-        next -= ligand
-        while next:
-            ligand.update(next)
-            next = set(mol.get_bonded_atoms_multiple(next))
-            next -= ligand
+        _next = set(mol.get_bonded_atoms(lc)) - ligand
+        while _next:
+            ligand.update(_next)
+            _next = set(mol.get_bonded_atoms_multiple(_next)) - ligand
         lc = list(ligand & tmp_lcs)
-        ligand = list(ligand)
+        tmp_lcs -= set(lc)
         mol.lcs.append(lc)
-        mol.ligand_ind.append(ligand)
+        mol.ligand_ind.append(list(ligand))
     
     mol.graph = graph_copy
 
