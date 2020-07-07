@@ -19,6 +19,7 @@ class simple_mol(object):
     def __init__(self, filename: str):
         f = open(filename, 'r')
         self.text = f.read().replace('\n', ' ')
+        self.ligand_types = [] #could be determined later by any custom functions, must be in the same order as self.lcs and self.ligand_ind
     
     def get_coords(self, with_ind=True):
 
@@ -119,7 +120,19 @@ class simple_mol(object):
             bonded.update(self.get_bonded_atoms(i))
         return list(bonded)
 
-# This following functions are devoted to figuring out the connectivities and distances.
+    def get_specific_ligand(self, ligand_type: str) -> list:
+
+        """
+        Returns a list of ligands that belong to the given type.
+        For example, 
+        [0,1]
+        means the first and second ligands are the given type.
+        This could be used to access self.lcs and self.ligand_ind to get the indices of ligand centers and all ligand atoms.
+        """
+
+        return [i for i, x in enumerate(self.ligand_types) if x == ligand_type]
+
+# These following functions are devoted to figuring out the connectivities and distances.
 # Following the conventional approach of setting bond length cutoffs.
 
 _get = lambda l, ind: [l[i] for i in ind]
@@ -283,14 +296,13 @@ def determine_CN_NN(mol: simple_mol):
     mol.NN = [0]
     """
 
-    mol.CN = []
-    mol.NN = []
+    mol.ligand_types = []
 
     for i, lc in enumerate(mol.lcs):
         if sorted([mol.atoms[lc[0]], mol.atoms[lc[1]]]) == ['C', 'N']:
-            mol.CN.append(i)
+            mol.ligand_types.append('CN')
         else:
-            mol.NN.append(i)
+            mol.ligand_types.append('NN')
 
 def get_mol(filename: str, with_ind=True, depth=5) -> simple_mol:
 

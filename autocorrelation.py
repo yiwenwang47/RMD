@@ -28,6 +28,16 @@ def feature_name(start, scope, _property, operation, depth):
 
     return '_'.join([start, scope, property_notation[_property], operation_name[operation], str(depth)])
 
+def init_feature(num_properties, operation, depth):
+
+    """
+    Initializes an empty feature vector. 
+    """
+
+    if operation == 'subtract' or operation == 'divide':
+        depth -= 1
+    return np.zeros((depth+1) * num_properties).astype(np.float)
+
 def pair_correlation(_property: str, atom1: str, atom2: str, operation: str):
     p1, p2 = properties[_property](atom1), properties[_property](atom2)
     return operations[operation](p1, p2)
@@ -35,7 +45,7 @@ def pair_correlation(_property: str, atom1: str, atom2: str, operation: str):
 def topology_ac(mol: simple_mol, ind1: int, ind2: int, operation: str):
     return operations[operation](mol.coordination[ind1], mol.coordination[ind2])
 
-def rac_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, operation='multiply', depth=3, average=True) -> np.array:
+def RAC_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, operation: str, depth: int, average: bool) -> np.ndarray:
     
     """
     Limiting the first atom in any atom pair to the given origin atom. 
@@ -72,31 +82,34 @@ def rac_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, oper
     
     return feature
 
-def rac_all_atoms(mol:  simple_mol, _property: str, scope: set, operation='multiply', depth=3, average=True) -> np.array:
+def RAC_all_atoms(mol: simple_mol, _property: str, scope: set, operation: str, depth: int, average: bool) -> np.ndarray:
      
     """
     Does not only start from any specific center.
     Pass scope = set() to get a full-scope rac feature.
     """
-
-    if not scope:
-        scope = set(range(mol.natoms))
     
     feature = np.zeros(depth+1).astype(np.float)
 
-    for ind in scope:
+    for ind in range(mol.natoms):
         atom = mol.atoms[ind]
         if _property != 'topology':
-            feature[0] = pair_correlation(_property, atom, atom, operation)
+            feature[0] += pair_correlation(_property, atom, atom, operation)
         else:
-            feature[0] = topology_ac(mol, ind, ind, operation)
+            feature[0] += topology_ac(mol, ind, ind, operation)
+
+    if average:
+        if not scope:
+            feature[0] = np.divide(feature[0], mol.natoms)
+        else:
+            feature[0] = np.divide(feature[0], len(scope))
 
     for d in range(1, depth+1):
         n_d = 0
         targets = np.where(mol.distances==d)
         for i in range(len(targets[0])):
             ind1, ind2 = targets[0][i], targets[1][i]
-            if ind1 in scope and ind2 in scope:
+            if not scope or (ind1 in scope and ind2 in scope):
                 atom1, atom2 = mol.atoms[ind1], mol.atoms[ind2]
                 if _property != 'topology':
                     feature[d] += pair_correlation(_property, atom1, atom2, operation)
@@ -113,7 +126,97 @@ def rac_all_atoms(mol:  simple_mol, _property: str, scope: set, operation='multi
 
     return feature
 
-def rac_for_CN_NN(mol: simple_mol, depth=3) -> np.array:
+_average = {
+    'electronegativity': True,
+    'atomic number': True,
+    'identity': False,
+    'covalent radius': True,
+    'topology': False,
+    'polarizability': True
+}
+
+def multiple_RACs_from_atom(mol: simple_mol, _properties: list, origin: int, scope: set, operation: str, depth: int) -> np.ndarray:
+    for i, _property in enumerate(_properties):
+        _new = RAC_from_atom(mol, _property=_property, origin=origin, scope=scope, operation=operation, depth=depth, average=_average[_property])
+        if i == 0:
+            feature = _new
+        else:
+            feature = np.concatenate((feature, _new))
+    return feature
+
+def multiple_RACs_all_atoms(mol: simple_mol, _properties: list, scope: set, operation: str, depth: int) -> np.ndarray:
+    for i, _property in enumerate(_properties):
+        _new = RAC_all_atoms(mol, _property=_property, scope=scope, operation=operation, depth=depth, average=_average[_property])
+        if i == 0:
+            feature = _new
+        else:
+            feature = np.concatenate((feature, _new))
+    return feature
+
+def RAC_f_all(mol: simple_mol, _properties: list, operation: str, depth: int) -> np.ndarray:
+    return multiple_RACs_all_atoms(mol=mol, _properties=_properties, scope=set(), operation=operation, depth=depth)
+
+def RAC_mc_all(mol: simple_mol, _properties: list, operation: str, depth: int, average_mc=True) -> np.ndarray:
+
+    """
+    The feature vector is averaged over all metal centers by default.
+    """
+
+    n_mc = len(mol.mcs)
+    assert n_mc > 0
+
+    feature = init_feature(len(_properties), operation, depth)
+
+    for i, mc in enumerate(mol.mcs):
+        feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=set(), operation=operation, depth=depth)
+    
+    if not average_mc:
+        return feature
+
+    return np.divide(feature, n_mc)
+
+def RAC_lc_ligand(mol: simple_mol, ligand_type: str, _properties: list, operation: str, depth: int, average_lc=True) -> np.ndarray:
+
+    """
+    The ligand type is not specified here in order to accommodate more possibilities in the future.
+    Within each ligand, the feature vector is averaged over all ligand centers by default.
+    Averaged over all ligands. 
+    """
+
+    ligands = mol.get_specific_ligand(ligand_type)
+    feature = init_feature(len(_properties), operation, depth)
+
+    for ligand in ligands:
+        ligand_feature = init_feature(len(_properties), operation, depth)
+        lcs = mol.lcs[ligand]
+        scope = set(mol.ligand_ind[ligand])
+        for lc in lcs:
+            ligand_feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=lc, scope=scope, operation=operation, depth=depth)
+        ligand_feature = np.divide(ligand_feature, len(lcs))
+        feature += ligand_feature
+
+    if not average_lc:
+        return feature
+
+    return np.divide(feature, len(ligands))
+
+def RAC_f_ligand(mol: simple_mol, ligand_type: str, _properties: list, operation: str, depth: int) -> np.ndarray:
+
+    """
+    The ligand type is not specified here in order to accommodate more possibilities in the future.
+    Averaged over all ligands.
+    """
+
+    ligands = mol.get_specific_ligand(ligand_type)
+    feature = init_feature(len(_properties), operation, depth)
+
+    for ligand in ligands:
+        scope = set(mol.ligand_ind[ligand])
+        feature += multiple_RACs_all_atoms(mol, _properties=_properties, scope=scope, operation=operation, depth=depth)
+    
+    return np.divide(feature, len(ligands))
+
+def full_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
 
     """
     A modified version of the original RAC-155.
@@ -125,13 +228,15 @@ def rac_for_CN_NN(mol: simple_mol, depth=3) -> np.array:
 
     Also, the original RAC-155 failed to recognize the difference between averaging over all counted atom pairs and not doing so.
     For example, it would not make sense to average 'identity', but we probably should average 'electronegativity'. 
-    This would be specified below.
+    This is specified above in the dictionary _average.
 
     According to J.P Janet et al.(2017), some of the features are trivial. But for now, we will not exclude them.
 
     Unfinished.
     """
 
-    full_feature = np.zeros(depth)
+    _properties = ['electronegativity', 'atomic number', 'identity', 'covalent radius', 'topology']
+
+    full_feature = RAC_f_all(mol=mol, _properties=_properties, operation='multiply', depth=depth)
 
     return full_feature
