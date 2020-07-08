@@ -230,10 +230,12 @@ def RAC_names_CN_NN(depth=3) -> list:
 
     def helper(start, scope, operation):
         _new = []
-        k = depth if operation == 'subtract' or operation == 'divide' else depth + 1
         for _property in _properties:
-            if operation == 'multiply' or (operation == 'subtract' and _property != 'identity'):
-                _new += [feature_name(start, scope, _property, operation, d) for d in range(k)]
+            if operation == 'multiply' or operation == 'add':
+                _new += [feature_name(start, scope, _property, operation, d) for d in range(depth+1)]
+            else:
+                if _property != 'identity':
+                    _new += [feature_name(start, scope, _property, operation, d) for d in range(1, depth+1)]
         return _new
 
     names += helper('f', 'all', 'multiply')
@@ -280,9 +282,9 @@ def full_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
     _f_NN = RAC_f_ligand(mol=mol, ligand_type='NN', _properties=_properties, operation='multiply', depth=depth)
 
     __mc_all = RAC_mc_all(mol=mol, _properties=__properties, operation='subtract', depth=depth)
-    __f_CN = RAC_f_ligand(mol=mol, ligand_type='CN', _properties=__properties, operation='subtract', depth=depth)
-    __f_NN = RAC_f_ligand(mol=mol, ligand_type='NN', _properties=__properties, operation='subtract', depth=depth)
+    __lc_CN = RAC_lc_ligand(mol=mol, ligand_type='CN', _properties=__properties, operation='subtract', depth=depth, average_lc=True)
+    __lc_NN = RAC_lc_ligand(mol=mol, ligand_type='NN', _properties=__properties, operation='subtract', depth=depth, average_lc=True)
 
-    full_feature = np.concatenate((_f_all, _mc_all, _lc_CN, _lc_NN, _f_CN, _f_NN, __mc_all, __f_CN, __f_NN))
+    full_feature = np.concatenate((_f_all, _mc_all, _lc_CN, _lc_NN, _f_CN, _f_NN, __mc_all, __lc_CN, __lc_NN))
 
     return full_feature

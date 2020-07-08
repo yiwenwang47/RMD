@@ -3,7 +3,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 def plot_3d(mol):
     """
-    A very simple way to plot a molecule in a 3d fashion
+    A very simple way to plot a molecule in a 3d fashion. For the sake of visualizing bonds.
     """
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
