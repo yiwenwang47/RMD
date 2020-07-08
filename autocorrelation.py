@@ -23,7 +23,7 @@ def feature_name(start, scope, _property, operation, depth):
 
     """
     Gives feature name based on all specifications. 
-    I try to make them as self-explanatory as possible. 
+    Intended to be self-explanatory as possible. 
     """
 
     return '_'.join([start, scope, property_notation[_property], operation_name[operation], str(depth)])
@@ -215,6 +215,38 @@ def RAC_f_ligand(mol: simple_mol, ligand_type: str, _properties: list, operation
         feature += multiple_RACs_all_atoms(mol, _properties=_properties, scope=scope, operation=operation, depth=depth)
     
     return np.divide(feature, len(ligands))
+
+#The following section is only about RAC features for CN/NN ligands.
+
+def RAC_names_CN_NN(depth=3) -> list:
+
+    """
+    Get all the feature names.
+    """
+
+    _properties = ['electronegativity', 'atomic number', 'identity', 'covalent radius', 'topology']
+
+    names = []
+
+    def helper(start, scope, operation):
+        _new = []
+        k = depth if operation == 'subtract' or operation == 'divide' else depth + 1
+        for _property in _properties:
+            _new += [feature_name(start, scope, _property, operation, d) for d in range(k)]
+        return _new
+
+    names += helper('f', 'all', 'multiply')
+    names += helper('mc', 'all', 'multiply')
+    names += helper('lc', 'CN', 'multiply')
+    names += helper('lc', 'NN', 'multiply')
+    names += helper('f', 'CN', 'multiply')
+    names += helper('f', 'NN', 'multiply')
+
+    names += helper('mc', 'all', 'subtract')
+    names += helper('lc', 'CN', 'subtract')
+    names += helper('lc', 'NN', 'subtract')
+
+    return names
 
 def full_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
 
