@@ -232,7 +232,8 @@ def RAC_names_CN_NN(depth=3) -> list:
         _new = []
         k = depth if operation == 'subtract' or operation == 'divide' else depth + 1
         for _property in _properties:
-            _new += [feature_name(start, scope, _property, operation, d) for d in range(k)]
+            if operation == 'multiply' or (operation == 'subtract' and _property != 'identity'):
+                _new += [feature_name(start, scope, _property, operation, d) for d in range(k)]
         return _new
 
     names += helper('f', 'all', 'multiply')
@@ -257,6 +258,7 @@ def full_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
     f/all, mc/all, lc/CN, lc/NN, f/CN, f/NN for product RACs
     mc/all, lc/CN, lc/NN for difference RACs
 
+    Whenever scope is defined to be one type of ligand, the feature vector is averaged over all corresponding ligands. 
 
     Also, the original RAC-155 failed to recognize the difference between averaging over all counted atom pairs and not doing so.
     For example, it would not make sense to average 'identity', but we probably should average 'electronegativity'. 
@@ -268,7 +270,19 @@ def full_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
     """
 
     _properties = ['electronegativity', 'atomic number', 'identity', 'covalent radius', 'topology']
+    __properties = ['electronegativity', 'atomic number', 'covalent radius', 'topology']
 
-    full_feature = RAC_f_all(mol=mol, _properties=_properties, operation='multiply', depth=depth)
+    _f_all = RAC_f_all(mol=mol, _properties=_properties, operation='multiply', depth=depth)
+    _mc_all = RAC_mc_all(mol=mol, _properties=_properties, operation='multiply', depth=depth)
+    _lc_CN = RAC_lc_ligand(mol=mol, ligand_type='CN', _properties=_properties, operation='multiply', depth=depth, average_lc=True)
+    _lc_NN = RAC_lc_ligand(mol=mol, ligand_type='NN', _properties=_properties, operation='multiply', depth=depth, average_lc=True)
+    _f_CN = RAC_f_ligand(mol=mol, ligand_type='CN', _properties=_properties, operation='multiply', depth=depth)
+    _f_NN = RAC_f_ligand(mol=mol, ligand_type='NN', _properties=_properties, operation='multiply', depth=depth)
+
+    __mc_all = RAC_mc_all(mol=mol, _properties=__properties, operation='subtract', depth=depth)
+    __f_CN = RAC_f_ligand(mol=mol, ligand_type='CN', _properties=__properties, operation='subtract', depth=depth)
+    __f_NN = RAC_f_ligand(mol=mol, ligand_type='NN', _properties=__properties, operation='subtract', depth=depth)
+
+    full_feature = np.concatenate((_f_all, _mc_all, _lc_CN, _lc_NN, _f_CN, _f_NN, __mc_all, __f_CN, __f_NN))
 
     return full_feature
