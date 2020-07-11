@@ -24,7 +24,7 @@ class simple_mol(object):
     def get_coords(self, with_ind=True):
 
         """
-        Parse the coordinates from the xyz file.
+        Parse the coordinates from an xyz file.
         """
         if with_ind:
             coords_lines = coord_pattern.findall(self.text)
@@ -217,6 +217,10 @@ def get_graph_by_ligands(mol: simple_mol) -> np.ndarray:
     mcs = mol.mcs
     lcs = flatten(mol.lcs)
     matrix = distance_matrix(mol.coords_all[mcs], mol.coords_all[lcs])
+
+    """
+    This part connects the metal atoms and the coordinating atoms in the ligands first. 
+    """
 
     for i, ind_i in enumerate(mcs):
         for j, ind_j in enumerate(lcs):
