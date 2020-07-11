@@ -5,20 +5,6 @@ from .elements import *
 from .molecule import *
 import numpy as np
 
-operations = {
-    'add': lambda x, y: np.add(x, y),
-    'subtract': lambda x, y: np.add(x, -y),
-    'multiply': lambda x, y: np.multiply(x, y),
-    'divide': lambda x, y: np.divide(x, y)
-}
-
-operation_name = {
-    'add': 'sum',
-    'subtract': 'diff',
-    'multiply': 'prod',
-    'divide': 'ratio'
-}
-
 def feature_name(start, scope, _property, operation, depth):
 
     """
@@ -126,13 +112,14 @@ def RAC_all_atoms(mol: simple_mol, _property: str, scope: set, operation: str, d
 
     return feature
 
+# Set to False for now. Need more experiments.
 _average = {
-    'electronegativity': True,
-    'atomic number': True,
+    'electronegativity': False,
+    'atomic number': False,
     'identity': False,
-    'covalent radius': True,
+    'covalent radius': False,
     'topology': False,
-    'polarizability': True
+    'polarizability': False
 }
 
 def multiple_RACs_from_atom(mol: simple_mol, _properties: list, origin: int, scope: set, operation: str, depth: int) -> np.ndarray:

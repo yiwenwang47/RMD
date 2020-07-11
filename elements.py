@@ -1,3 +1,5 @@
+import numpy as np
+
 # Variables in this file are directly copied from https://github.com/hjkgrp/molSimplify/blob/31ae03eec6eaa1d3d7946f6413d756051f8feea5/molSimplify/Classes/globalvars.py
 # Slight modifications might be added in the future.
 
@@ -141,4 +143,21 @@ property_notation = {
     'covalent radius': 'S',
     'topology': "T",
     'polarizability': "alpha"
+}
+
+# The following variables are still related to property calculation, although not necessarily directly relate to any element.
+# They are moved here because in the future, more descriptors will be included.
+
+operations = {
+    'add': lambda x, y: np.add(x, y),
+    'subtract': lambda x, y: np.add(x, -y),
+    'multiply': lambda x, y: np.multiply(x, y),
+    'divide': lambda x, y: np.divide(x, y)
+}
+
+operation_name = {
+    'add': 'sum',
+    'subtract': 'diff',
+    'multiply': 'prod',
+    'divide': 'ratio'
 }
