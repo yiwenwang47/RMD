@@ -3,6 +3,7 @@
 
 from .elements import *
 from .molecule import *
+from .utils import *
 import numpy as np
 
 def feature_name(start, scope, _property, operation, depth):
@@ -203,7 +204,7 @@ def RAC_f_ligand(mol: simple_mol, ligand_type: str, _properties: list, operation
     
     return np.divide(feature, len(ligands))
 
-#The following section is only about RAC features for CN/NN ligands.
+#The following section is only about RAC features for CN/NN ligands. Still following the RAC-155 list.
 
 def RAC_names_CN_NN(depth=3) -> list:
 
@@ -237,6 +238,21 @@ def RAC_names_CN_NN(depth=3) -> list:
     names += helper('lc', 'NN', 'subtract')
 
     return names
+
+def RAC_graph(names: list) -> simple_graph:
+
+    """
+    Grouping the RAC features.
+    """
+
+    translation = {
+        '0': 'proximal',
+        '1': 'proximal',
+        '2': 'middle',
+        '3': 'distal'
+    }
+
+    return create_feature_graph(names, translation=translation)
 
 def full_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
 

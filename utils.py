@@ -47,7 +47,7 @@ class simple_graph(object):
             results |= set(self.extract(node))
         return list(results)
     
-def create_graph(features, translation=None) -> simple_graph:
+def create_feature_graph(features, translation=None) -> simple_graph:
 
     """
     Creates a very simple graph that connects the all the features and the groups that they belong to. 
