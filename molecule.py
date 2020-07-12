@@ -20,6 +20,7 @@ class simple_mol(object):
         f = open(filename, 'r')
         self.text = f.read().replace('\n', ' ')
         self.ligand_types = [] #could be determined later by any custom functions, must be in the same order as self.lcs and self.ligand_ind
+        self.properties = {}
     
     def get_coords(self, with_ind=True):
 
@@ -93,7 +94,7 @@ class simple_mol(object):
         self.get_ligand_ind()
         del self.text
         self.graph = get_graph_by_ligands(self)
-        self.coordination = self.graph.sum(axis=0)
+        self.add_property('topology', self.graph.sum(axis=0))
         self.init_distances()
     
     def parse_all(self):
@@ -106,7 +107,7 @@ class simple_mol(object):
         del self.text
         self.graph = get_graph_full_scope(self)
         bfs_ligands(self)
-        self.coordination = self.graph.sum(axis=0)
+        self.add_property('topology', self.graph.sum(axis=0))
         self.init_distances()
 
     def get_bonded_atoms(self, atom_index: int):
@@ -131,6 +132,14 @@ class simple_mol(object):
         """
 
         return [i for i, x in enumerate(self.ligand_types) if x == ligand_type]
+
+    def add_property(self, _property: str, values):
+        
+        """
+        Apart from elemental properties, each atom could have properties from other calculations. 
+        """
+
+        self.properties[_property] = values
 
 # These following functions are devoted to figuring out the connectivities and distances.
 # Following the conventional approach of setting bond length cutoffs.
