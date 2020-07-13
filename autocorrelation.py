@@ -238,7 +238,10 @@ def RAC_graph(names: list) -> simple_graph:
         '3': 'distal'
     }
 
-    return create_feature_graph(names, translation=translation)
+    graph = simple_graph(names)
+    graph.get_graph(translation=translation)
+
+    return graph
 
 def full_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
 

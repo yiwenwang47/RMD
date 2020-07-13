@@ -9,8 +9,15 @@ class simple_graph(object):
     Although the overall approach might seem trivial, it helps with keeping track of all the different definitions, especially when there are a lot.
     """
 
-    def __init__(self):
+    def __init__(self, features):
         self.graph_dict = defaultdict(dict)
+        self.features = features
+        self.feature_ind = {}
+        for i, f in enumerate(features):
+            self.feature_ind[f] = i
+    
+    def _sort(self, extracted):
+        return sorted(extracted, key = lambda x: self.feature_ind[x])
 
     def add_node(self, node):
         if node not in self.graph_dict:
@@ -29,6 +36,12 @@ class simple_graph(object):
         _ = self.graph_dict[node_1].pop(node_2, None)
         _ = self.graph_dict[node_2].pop(node_1, None)
 
+    def get_graph(self, translation=None):
+        self = create_feature_graph(self, translation=translation)
+
+    def get_neighbors(self, node):
+        return list(self.graph_dict[node].keys())
+
     def get_nodes(self):
         return list(self.graph_dict.keys())
         
@@ -39,15 +52,15 @@ class simple_graph(object):
         results = set(self.extract(nodes[0]))
         for node in nodes[1:]:
             results &= set(self.extract(node))
-        return list(results)
+        return self._sort(list(results))
     
     def extract_union(self, nodes):
         results = set(self.extract(nodes[0]))
         for node in nodes[1:]:
             results |= set(self.extract(node))
-        return list(results)
+        return self._sort(list(results))
     
-def create_feature_graph(features, translation=None) -> simple_graph:
+def create_feature_graph(graph, translation=None) -> simple_graph:
 
     """
     Creates a very simple graph that connects the all the features and the groups that they belong to. 
@@ -57,9 +70,7 @@ def create_feature_graph(features, translation=None) -> simple_graph:
     means feature names with '1' in them should be labeled 'first'.
     """
 
-    graph = simple_graph()
-
-    for feature in features:
+    for feature in graph.features:
         labels = feature.split('_')
         for label in labels:
             if translation and label in translation:
