@@ -1,5 +1,5 @@
 ## Revised cheminformatics descriptors
-This repos is about revised cheminformatics descriptors. They are revised as in being defined with customary specifications such as scope, distance, properties, etc.
+This repo is about revised cheminformatics descriptors. They are revised as in being defined with customary specifications such as scope, distance, properties, etc.
 
 ### Revised autocorrelation descriptors
 
