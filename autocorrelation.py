@@ -25,12 +25,17 @@ def init_feature(num_properties, operation, depth):
         depth -= 1
     return np.zeros((depth+1) * num_properties).astype(np.float)
 
+# This function is written in a very naive way. Will possibly be completely replaced.
 def _property_correlation(mol: simple_mol, _property: str, ind1: int, ind2: int, operation: str):
     if _property in properties:
         p1, p2 = properties[_property](mol.atoms[ind1]), properties[_property](mol.atoms[ind2])
     else:
         p1, p2 = mol.properties[_property][ind1],  mol.properties[_property][ind2]
     return operations[operation](p1, p2)
+
+# Moreau-Broto autocorrelation calculated by matrix multiplication. PRIORITY!!!!
+def Moreau_Broto_ac(array: np.ndarray, matrix: np.ndarray, operation: str):
+    return 
 
 def RAC_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, operation: str, depth: int, average: bool) -> np.ndarray:
     
