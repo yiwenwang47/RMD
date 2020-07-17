@@ -67,11 +67,11 @@ def RAC_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, oper
     """
 
     mol.populate_property(_property)
-    scope = list(scope)
     feature = np.zeros(depth+1).astype(np.float)
     d_from_origin = mol.distances[origin]
     array_2 = mol.properties[_property]
     if scope:
+        scope = list(scope)
         d_from_origin = d_from_origin[scope]
         array_2 = array_2[scope]
     array_1 = mol.properties[_property][origin] * np.ones(len(d_from_origin))
@@ -97,12 +97,12 @@ def RAC_all_atoms(mol: simple_mol, _property: str, scope: set, operation: str, d
     """
     
     mol.populate_property(_property)
-    scope = list(scope)
     feature = np.zeros(depth+1).astype(np.float)
     array = mol.properties[_property]
     matrix = mol.distances
     n_0 = mol.natoms
     if scope:
+        scope = list(scope)
         array = array[scope]
         n_0 = len(scope)
         matrix = matrix[scope][:, scope]
@@ -131,7 +131,8 @@ _average = {
     'identity': False,
     'covalent radius': False,
     'topology': False,
-    'polarizability': False
+    'polarizability': False,
+    'vdW radius': False
 }
 
 def multiple_RACs_from_atom(mol: simple_mol, _properties: list, origin: int, scope: set, operation: str, depth: int) -> np.ndarray:
@@ -183,7 +184,7 @@ def RAC_mc_ligand(mol: simple_mol, ligand_type: str, _properties: list, operatio
     feature = init_feature(len(_properties), operation, depth)
     for ligand in ligands:
         for mc in mol.mcs:
-            scope = set(mol.ligand_ind[ligand]).update(mc)
+            scope = set(mol.ligand_ind[ligand]).update([mc])
             feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, operation=operation, depth=depth)
     if average_mc:
         feature = np.divide(feature, n_mc) 
@@ -329,7 +330,7 @@ def updated_RAC_names_CN_NN() -> list:
     Get all the feature names.
     """
 
-    _properties = ['electronegativity', 'atomic number', 'identity', 'covalent radius', 'topology']
+    _properties = ['electronegativity', 'atomic number', 'identity', 'covalent radius', 'topology', 'polarizability', 'vdW radius']
 
     names = []
 
@@ -364,7 +365,7 @@ def updated_RAC_names_CN_NN() -> list:
 
     return names
 
-def updated_RAC_CN_NN(mol: simple_mol) -> np.ndarray:
+def updated_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
 
     """
     An updated version. Big difference: 3plus stands for depth=3 and greater. Call mol.distance_cheat(fake_depth=3) first. Another big difference: replaced mc/all with mc/CN and mc/NN.
