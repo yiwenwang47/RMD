@@ -163,16 +163,32 @@ def RAC_mc_all(mol: simple_mol, _properties: list, operation: str, depth: int, a
 
     n_mc = len(mol.mcs)
     assert n_mc > 0
-
     feature = init_feature(len(_properties), operation, depth)
-
-    for i, mc in enumerate(mol.mcs):
+    for mc in mol.mcs:
         feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=set(), operation=operation, depth=depth)
-    
     if not average_mc:
         return feature
 
     return np.divide(feature, n_mc)
+
+def RAC_mc_ligand(mol: simple_mol, ligand_type: str, _properties: list, operation: str, depth: int, average_mc=True) -> np.ndarray:
+
+    """
+    The feature vector is averaged over all metal centers and all ligands by default.
+    """
+
+    n_mc = len(mol.mcs)
+    ligands = mol.get_specific_ligand(ligand_type)
+    assert n_mc > 0
+    feature = init_feature(len(_properties), operation, depth)
+    for ligand in ligands:
+        for mc in mol.mcs:
+            scope = set(mol.ligand_ind[ligand]).update(mc)
+            feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, operation=operation, depth=depth)
+    if average_mc:
+        feature = np.divide(feature, n_mc) 
+
+    return np.divide(feature, len(ligands))
 
 def RAC_lc_ligand(mol: simple_mol, ligand_type: str, _properties: list, operation: str, depth: int, average_lc=True) -> np.ndarray:
 
@@ -351,10 +367,26 @@ def updated_RAC_names_CN_NN() -> list:
 def updated_RAC_CN_NN(mol: simple_mol) -> np.ndarray:
 
     """
-    An updated version. Big difference: 3plus stands for depth=3 and greater. 
-    Another big difference: replaced mc/all with mc/CN and mc/NN.
+    An updated version. Big difference: 3plus stands for depth=3 and greater. Call mol.distance_cheat(fake_depth=3) first. Another big difference: replaced mc/all with mc/CN and mc/NN.
+    Experimental, so more properties are included.
     """
 
+    _properties = ['electronegativity', 'atomic number', 'identity', 'covalent radius', 'topology', 'polarizability', 'vdW radius']
+    __properties = ['electronegativity', 'atomic number', 'covalent radius', 'topology', 'polarizability', 'vdW radius']
 
+    _f_all = RAC_f_all(mol=mol, _properties=_properties, operation='multiply', depth=depth)
+    _mc_CN = RAC_mc_ligand(mol=mol, ligand_type='CN', _properties=_properties, operation='multiply', depth=depth)
+    _mc_NN = RAC_mc_ligand(mol=mol, ligand_type='NN', _properties=_properties, operation='multiply', depth=depth)
+    _lc_CN = RAC_lc_ligand(mol=mol, ligand_type='CN', _properties=_properties, operation='multiply', depth=depth, average_lc=True)
+    _lc_NN = RAC_lc_ligand(mol=mol, ligand_type='NN', _properties=_properties, operation='multiply', depth=depth, average_lc=True)
+    _f_CN = RAC_f_ligand(mol=mol, ligand_type='CN', _properties=_properties, operation='multiply', depth=depth)
+    _f_NN = RAC_f_ligand(mol=mol, ligand_type='NN', _properties=_properties, operation='multiply', depth=depth)
+
+    __mc_CN = RAC_mc_ligand(mol=mol, ligand_type='CN', _properties=__properties, operation='subtract', depth=depth)
+    __mc_NN = RAC_mc_ligand(mol=mol, ligand_type='NN', _properties=__properties, operation='subtract', depth=depth)
+    __lc_CN = RAC_lc_ligand(mol=mol, ligand_type='CN', _properties=__properties, operation='subtract', depth=depth, average_lc=True)
+    __lc_NN = RAC_lc_ligand(mol=mol, ligand_type='NN', _properties=__properties, operation='subtract', depth=depth, average_lc=True)
+
+    full_feature = np.concatenate((_f_all, _mc_CN, _mc_NN, _lc_CN, _lc_NN, _f_CN, _f_NN, __mc_CN, __mc_NN, __lc_CN, __lc_NN))
 
     return full_feature
