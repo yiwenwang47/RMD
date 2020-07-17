@@ -75,14 +75,28 @@ class simple_mol(object):
     def init_distances(self):
         self.distances = self.graph.copy()
 
-    def get_all_distances(self, depth: int):
+    def distance_cheat(self, fake_depth: int):
 
         """
-        Only calculates shortest-path distances up to depth because we do not care about long range autocorrelations yet.
+        This is a trick that is helpful when we only care about distances up to a given depth, for example, 3. 
+        And then we will treat all the distances greater than 3 the same as fake_depth. 
+        """
+
+        self.distances[np.where(self.distances==0)] = fake_depth
+        self.distances[np.arange(self.natoms), np.arange(self.natoms)] = 0
+
+    def get_all_distances(self, depth: int, fake_depth=0):
+
+        """
+        Only calculates shortest-path distances up to depth.
+        New option: set all the longer distances as fake_depth.
         """
 
         for atom in range(self.natoms):
             bfs_distances(self, atom, depth)
+        
+        if fake_depth != 0:
+            self.distance_cheat(fake_depth)
 
     def parse_with_ind(self):
 

@@ -34,7 +34,8 @@ def _property_correlation(mol: simple_mol, _property: str, ind1: int, ind2: int,
     return operations[operation](p1, p2)
 
 # Moreau-Broto autocorrelation calculated by matrix multiplication. PRIORITY!!!!
-def Moreau_Broto_ac(array: np.ndarray, matrix: np.ndarray, operation: str):
+def Moreau_Broto_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, operation: str):
+    
     return 
 
 def RAC_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, operation: str, depth: int, average: bool) -> np.ndarray:
@@ -240,7 +241,8 @@ def RAC_graph(names: list) -> simple_graph:
         '0': 'proximal',
         '1': 'proximal',
         '2': 'middle',
-        '3': 'distal'
+        '3': 'distal',
+        '3plus': 'distal'
     }
 
     graph = simple_graph(names)
@@ -283,5 +285,57 @@ def full_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
     __lc_NN = RAC_lc_ligand(mol=mol, ligand_type='NN', _properties=__properties, operation='subtract', depth=depth, average_lc=True)
 
     full_feature = np.concatenate((_f_all, _mc_all, _lc_CN, _lc_NN, _f_CN, _f_NN, __mc_all, __lc_CN, __lc_NN))
+
+    return full_feature
+
+def updated_RAC_names_CN_NN() -> list:
+
+    """
+    Get all the feature names.
+    """
+
+    _properties = ['electronegativity', 'atomic number', 'identity', 'covalent radius', 'topology']
+
+    names = []
+
+    def translate(d):
+        if d==3:
+            return "3plus"
+        else:
+            return str(d)
+
+    def helper(start, scope, operation):
+        _new = []
+        for _property in _properties:
+            if operation == 'multiply' or operation == 'add':
+                _new += [feature_name(start, scope, _property, operation, translate(d)) for d in range(4)]
+            else:
+                if _property != 'identity':
+                    _new += [feature_name(start, scope, _property, operation, translate(d)) for d in range(1, 4)]
+        return _new
+
+    names += helper('f', 'all', 'multiply')
+    names += helper('mc', 'CN', 'multiply')
+    names += helper('mc', 'NN', 'multiply')
+    names += helper('lc', 'CN', 'multiply')
+    names += helper('lc', 'NN', 'multiply')
+    names += helper('f', 'CN', 'multiply')
+    names += helper('f', 'NN', 'multiply')
+
+    names += helper('mc', 'CN', 'subtract')
+    names += helper('mc', 'NN', 'subtract')
+    names += helper('lc', 'CN', 'subtract')
+    names += helper('lc', 'NN', 'subtract')
+
+    return names
+
+def updated_RAC_CN_NN(mol: simple_mol) -> np.ndarray:
+
+    """
+    An updated version. Big difference: 3plus stands for depth=3 and greater. 
+    Another big difference: replaced mc/all with mc/CN and mc/NN.
+    """
+
+
 
     return full_feature
