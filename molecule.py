@@ -108,7 +108,7 @@ class simple_mol(object):
         self.get_ligand_ind()
         del self.text
         self.graph = get_graph_by_ligands(self)
-        self.add_property('topology', self.graph.sum(axis=0))
+        self.custom_property('topology', self.graph.sum(axis=0))
         self.init_distances()
     
     def parse_all(self):
@@ -121,7 +121,7 @@ class simple_mol(object):
         del self.text
         self.graph = get_graph_full_scope(self)
         bfs_ligands(self)
-        self.add_property('topology', self.graph.sum(axis=0))
+        self.custom_property('topology', self.graph.sum(axis=0))
         self.init_distances()
 
     def get_bonded_atoms(self, atom_index: int):
@@ -148,11 +148,11 @@ class simple_mol(object):
         return [i for i, x in enumerate(self.ligand_types) if x == ligand_type]
 
     def populate_property(self, _property: str):
-        if _property in properties:
-            mol.properties[_property] = np.zeros(self.natoms)
+        if _property in properties and _property not in self.properties:
+            self.properties[_property] = np.zeros(self.natoms)
             _func = properties[_property]
             for i in range(self.natoms):
-                mol.properties[_property][i] = _func[self.atoms[i]]
+                self.properties[_property][i] = _func(self.atoms[i])
 
     def custom_property(self, _property: str, values):
         

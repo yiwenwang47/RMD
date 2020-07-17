@@ -6,6 +6,8 @@ from .molecule import *
 from .utils import *
 import numpy as np
 
+delta = lambda x, y: np.int64(x==y)
+
 def feature_name(start, scope, _property, operation, depth):
 
     """
@@ -25,76 +27,93 @@ def init_feature(num_properties, operation, depth):
         depth -= 1
     return np.zeros((depth+1) * num_properties).astype(np.float)
 
-# This function is written in a very naive way. Will possibly be completely replaced.
-def _property_correlation(mol: simple_mol, _property: str, ind1: int, ind2: int, operation: str):
-    if _property in properties:
-        p1, p2 = properties[_property](mol.atoms[ind1]), properties[_property](mol.atoms[ind2])
-    else:
-        p1, p2 = mol.properties[_property][ind1],  mol.properties[_property][ind2]
+# This function is written in a very naive way. Will only be called in special cases.
+def property_correlation(mol: simple_mol, _property: str, ind1: int, ind2: int, operation: str) -> np.float:
+    assert _property in mol.properties
+    p1, p2 = mol.properties[_property][ind1],  mol.properties[_property][ind2]
     return operations[operation](p1, p2)
 
-# Moreau-Broto autocorrelation calculated by matrix multiplication. PRIORITY!!!!
-def Moreau_Broto_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, operation: str):
-    
-    return 
+# Moreau-Broto autocorrelation calculated by matrix multiplication.
+def Moreau_Broto_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, operation: str, with_origin=False) -> np.float:
+
+    """
+    Although the original Moreau-Broto autocorrelation only considers product aurtocorrelation, I try to accommodate all four operations.
+    By default, the binary_matrix is assumed to be 2-d and symmetric. If with_origin = True, binary_matrix should be a 1-d array.
+    This does not deal with potential problems brought by zero-ish elemental property values.
+    """
+
+    if not with_origin:
+        assert len(binary_matrix.shape) == 2
+        if operation == 'divide': 
+            array_2 = 1/array_2
+            operation = 'multiply'
+        if operation == 'add' or operation == 'subtract':
+            array_1 = binary_matrix.sum(axis=0) * array_1
+        array_2 = binary_matrix.dot(array_2)
+        return operations[operation](array_1, array_2).sum()
+    else:
+        assert len(binary_matrix.shape) == 1
+        return (operations[operation](array_1, array_2) * binary_matrix).sum()
+
+# This section includes all the RAC functions. 
+# RAC refers to revised autocorrelation descriptors, and the term autocorrelation only refers to Moreau-Broto style autocorrelation.
 
 def RAC_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, operation: str, depth: int, average: bool) -> np.ndarray:
     
     """
     Limiting the first atom in any atom pair to the given origin atom. 
     In other words, this is intended for RACs starting from lc or mc.
-    Pass scope = set() to get a full-scope rac feature.
+    The parameter scope is forced to be a set just to prevent possible replicates. Pass scope = set() to get a full-scope rac feature.
     """
 
+    mol.populate_property(_property)
+    scope = list(scope)
     feature = np.zeros(depth+1).astype(np.float)
-    
     d_from_origin = mol.distances[origin]
-    feature[0] = _property_correlation(mol, _property, origin, origin, operation)
+    array_2 = mol.properties[_property]
+    if scope:
+        d_from_origin = d_from_origin[scope]
+        array_2 = array_2[scope]
+    array_1 = mol.properties[_property][origin] * np.ones(len(d_from_origin))
+    feature[0] = property_correlation(mol, _property, origin, origin, operation)
 
     for d in range(1, depth+1):
-        n_d = 0
-        targets = set(np.where(d_from_origin==d)[0])
-        if scope:
-            targets = targets & scope
-        for target in targets:
-            feature[d] += _property_correlation(mol, _property, origin, target, operation)
-            n_d += 1
+        targets = delta(d_from_origin, d)
+        n_d = targets.sum()
+        feature[d] = Moreau_Broto_ac(array_1, targets, array_2, operation, with_origin=True)
         if average and n_d > 0:
             feature[d] = np.divide(feature[d], n_d)
-
+    
     if operation == 'subtract' or operation == 'divide':
         return feature[1:] #Because zero depth is trivial
-    
+
     return feature
 
 def RAC_all_atoms(mol: simple_mol, _property: str, scope: set, operation: str, depth: int, average: bool) -> np.ndarray:
      
     """
     Does not only start from any specific center.
-    Pass scope = set() to get a full-scope rac feature.
+    The parameter scope is forced to be a set just to prevent possible replicates. Pass scope = set() to get a full-scope rac feature.
     """
     
+    mol.populate_property(_property)
+    scope = list(scope)
     feature = np.zeros(depth+1).astype(np.float)
-    
+    array = mol.properties[_property]
+    matrix = mol.distances
+    n_0 = mol.natoms
     if scope:
-        for ind in scope:
-            feature[0] += _property_correlation(mol, _property, ind, ind, operation)
-        if average:
-            feature[0] = np.divide(feature[0], len(scope))
-    else:
-        for ind in range(mol.natoms):
-            feature[0] += _property_correlation(mol, _property, ind, ind, operation)
-        if average:
-            feature[0] = np.divide(feature[0], mol.natoms)
+        array = array[scope]
+        n_0 = len(scope)
+        matrix = matrix[scope][:, scope]
+    feature[0] = Moreau_Broto_ac(array, np.ones(n_0), array, operation, with_origin=True)
+    if average and n_0 > 0:
+        feature[0] = np.divide(feature[0], n_0)
 
     for d in range(1, depth+1):
-        n_d = 0
-        targets = np.where(mol.distances==d)
-        for i in range(len(targets[0])):
-            ind1, ind2 = targets[0][i], targets[1][i]
-            if not scope or (ind1 in scope and ind2 in scope):
-                feature[d] += _property_correlation(mol, _property, ind1, ind2, operation)
-                n_d += 1
+        targets = delta(matrix, d)
+        n_d = targets.sum()
+        feature[d] = Moreau_Broto_ac(array, targets, array, operation)
         if average and n_d > 0:
             feature[d] = np.divide(feature[d], n_d)
         if not average:
