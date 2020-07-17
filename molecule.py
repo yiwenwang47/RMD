@@ -134,11 +134,11 @@ class simple_mol(object):
         return [i for i, x in enumerate(self.ligand_types) if x == ligand_type]
 
     def populate_property(self, _property: str):
-        assert _property in properties
-        mol.properties[_property] = np.zeros(self.natoms)
-        _func = properties[_property]
-        for i in range(self.natoms):
-            mol.properties[_property][i] = _func[self.atoms[i]]
+        if _property in properties:
+            mol.properties[_property] = np.zeros(self.natoms)
+            _func = properties[_property]
+            for i in range(self.natoms):
+                mol.properties[_property][i] = _func[self.atoms[i]]
 
     def custom_property(self, _property: str, values):
         
