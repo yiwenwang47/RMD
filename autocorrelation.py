@@ -2,8 +2,8 @@
 # Assuming the simple_mol object already has attributes graph and distances.
 
 from .elements import *
-from .molecule import *
-from .utils import *
+from .molecule import simple_mol
+from .utils import simple_graph, create_feature_graph
 import numpy as np
 
 delta = lambda x, y: np.int64(x==y)
@@ -55,8 +55,17 @@ def Moreau_Broto_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.
         assert len(binary_matrix.shape) == 1
         return (operations[operation](array_1, array_2) * binary_matrix).sum()
 
-# This section includes all the RAC functions. 
-# RAC refers to revised autocorrelation descriptors, and the term autocorrelation only refers to Moreau-Broto style autocorrelation.
+def Moran_coeff() -> np.float:
+
+    return 
+
+def Geary_coeff() -> np.float:
+
+    return 
+
+# This section includes all the basic RAC functions. 
+# RAC refers to revised autocorrelation descriptors. 
+# For now, in this section the term autocorrelation only refers to Moreau-Broto style autocorrelation.
 
 def RAC_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, operation: str, depth: int, average: bool) -> np.ndarray:
     
@@ -124,7 +133,7 @@ def RAC_all_atoms(mol: simple_mol, _property: str, scope: set, operation: str, d
 
     return feature
 
-# Set to False for now. Need more experiments.
+# Set to False for now. Needs more experiments.
 _average = {
     'electronegativity': False,
     'atomic number': False,
@@ -232,7 +241,28 @@ def RAC_f_ligand(mol: simple_mol, ligand_type: str, _properties: list, operation
     
     return np.divide(feature, len(ligands))
 
-#The following section is only about RAC features for CN/NN ligands. Still following the RAC-155 list.
+# The following section is only about RAC features for CN/NN ligands. 
+# full_RAC_CN_NN follows the RAC-155 list. In our case, it's actually RAC-156.
+# updated_RAC_CN_NN includes a few definition changes and more property options. Experimental.
+
+def RAC_graph(names: list) -> simple_graph:
+
+    """
+    Grouping the RAC features.
+    """
+
+    translation = {
+        '0': 'proximal',
+        '1': 'proximal',
+        '2': 'middle',
+        '3': 'distal',
+        '3plus': 'distal'
+    }
+
+    graph = simple_graph(names)
+    graph.get_graph(translation=translation)
+
+    return graph
 
 def RAC_names_CN_NN(depth=3) -> list:
 
@@ -266,25 +296,6 @@ def RAC_names_CN_NN(depth=3) -> list:
     names += helper('lc', 'NN', 'subtract')
 
     return names
-
-def RAC_graph(names: list) -> simple_graph:
-
-    """
-    Grouping the RAC features.
-    """
-
-    translation = {
-        '0': 'proximal',
-        '1': 'proximal',
-        '2': 'middle',
-        '3': 'distal',
-        '3plus': 'distal'
-    }
-
-    graph = simple_graph(names)
-    graph.get_graph(translation=translation)
-
-    return graph
 
 def full_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
 
@@ -368,7 +379,8 @@ def updated_RAC_names_CN_NN() -> list:
 def updated_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
 
     """
-    An updated version. Big difference: 3plus stands for depth=3 and greater. Call mol.distance_cheat(fake_depth=3) first. Another big difference: replaced mc/all with mc/CN and mc/NN.
+    An updated version. Big difference: 3plus stands for depth=3 and greater. Call mol.distance_cheat(fake_depth=3) first. 
+    Another big difference: replaced mc/all with mc/CN and mc/NN.
     Experimental, so more properties are included.
     """
 
@@ -391,3 +403,14 @@ def updated_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
     full_feature = np.concatenate((_f_all, _mc_CN, _mc_NN, _lc_CN, _lc_NN, _f_CN, _f_NN, __mc_CN, __mc_NN, __lc_CN, __lc_NN))
 
     return full_feature
+
+    # This section is about integrating NBO results into RAC.
+    # First, NAO and NPA(omitted in notation for now). Please see below for detailed explanation on property names.
+
+    def NAO_NPA_names() -> list:
+
+        return names
+
+    def RAC_with_NAO_CN_NN(mol:simple_mol, depth=3) -> np.ndarray:
+
+        return full_feature
