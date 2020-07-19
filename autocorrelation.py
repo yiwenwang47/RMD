@@ -409,8 +409,16 @@ def updated_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
 
     def NAO_NPA_names() -> list:
 
+        _properties = ['Weighted energy', 'Natural charge', 
+        'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
+        'Valence py occupancy', 'Valence py energy', 'Valence pz occupancy', 'Valence pz energy']
+
         return names
 
     def RAC_with_NAO_CN_NN(mol:simple_mol, depth=3) -> np.ndarray:
+
+        _properties = ['Weighted energy', 'Natural charge', 
+        'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
+        'Valence py occupancy', 'Valence py energy', 'Valence pz occupancy', 'Valence pz energy']
 
         return full_feature

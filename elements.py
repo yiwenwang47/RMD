@@ -166,7 +166,17 @@ property_notation = {
     'covalent radius': 'S',
     'topology': "T",
     'polarizability': "alpha",
-    'vdW radius': 'r'
+    'vdW radius': 'r',
+    'Weighted energy': 'Enao',
+    'Natural charge': 'Qnao',
+    'Valence s occupancy': 'Os',
+    'Valence s energy': 'Es',
+    'Valence px occupancy': 'Opx',
+    'Valence px energy': 'Epx',
+    'Valence py occupancy': 'Opy',
+    'Valence py energy': 'Epy',
+    'Valence pz occupancy': 'Opz',
+    'Valence pz energy': 'Epz'
 }
 
 # The following variables are still related to property calculation, although not necessarily directly relate to any element.
