@@ -1,5 +1,6 @@
 # This file contains all kinds of utilities. 
 
+import numpy as np
 from collections import defaultdict
 
 class simple_graph(object):
@@ -60,11 +61,11 @@ class simple_graph(object):
             results |= set(self.extract(node))
         return self._sort(list(results))
     
-def create_feature_graph(graph, translation=None) -> simple_graph:
+def create_feature_graph(graph: simple_graph, translation=None) -> simple_graph:
 
     """
     Creates a very simple graph that connects the all the features and the groups that they belong to. 
-    Assuming all the feature names follow the same patter A_B_C, which means the feature belongs to groups A, B and C.
+    Assuming all the feature names follow the same pattern A_B_C, which means the feature belongs to groups A, B and C.
     The parameter translation should be a dictionary. For example,
     translation = {'1': 'first'}
     means feature names with '1' in them should be labeled 'first'.
