@@ -1,8 +1,8 @@
-# Revised autocorrelation descriptors. Based on graph of connectivities between atoms.
-# Assuming the simple_mol object already has attributes graph and distances.
+# Revised autocorrelation descriptors based on the topology of a molecule.
+# For the sake of simplicity, type hints simple_mol are omitted. 
+# Any variable named mol should be a simple_mol object, and have the following attributes: graph and distances.
 
 from .elements import *
-from .molecule import simple_mol
 from .utils import simple_graph, create_feature_graph
 import numpy as np
 
@@ -28,7 +28,7 @@ def init_feature(num_properties, operation, depth):
     return np.zeros((depth+1) * num_properties).astype(np.float)
 
 # This function is written in a very naive way. Will only be called in special cases.
-def property_correlation(mol: simple_mol, _property: str, ind1: int, ind2: int, operation: str) -> np.float:
+def property_correlation(mol, _property: str, ind1: int, ind2: int, operation: str) -> np.float:
     assert _property in mol.properties
     p1, p2 = mol.properties[_property][ind1],  mol.properties[_property][ind2]
     return operations[operation](p1, p2)
@@ -92,7 +92,7 @@ def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
 # RAC refers to revised autocorrelation descriptors. 
 # For now, in this section the term autocorrelation only refers to Moreau-Broto style autocorrelation.
 
-def RAC_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, operation: str, depth: int, average: bool) -> np.ndarray:
+def RAC_from_atom(mol, _property: str, origin: int, scope: set, operation: str, depth: int, average: bool) -> np.ndarray:
     
     """
     Limiting the first atom in any atom pair to the given origin atom. 
@@ -123,7 +123,7 @@ def RAC_from_atom(mol: simple_mol, _property: str, origin: int, scope: set, oper
 
     return feature
 
-def RAC_all_atoms(mol: simple_mol, _property: str, scope: set, operation: str, depth: int, average: bool) -> np.ndarray:
+def RAC_all_atoms(mol, _property: str, scope: set, operation: str, depth: int, average: bool) -> np.ndarray:
      
     """
     Does not only start from any specific center.
@@ -169,7 +169,7 @@ _average = {
     'vdW radius': False
 }
 
-def multiple_RACs_from_atom(mol: simple_mol, _properties: list, origin: int, scope: set, operation: str, depth: int) -> np.ndarray:
+def multiple_RACs_from_atom(mol, _properties: list, origin: int, scope: set, operation: str, depth: int) -> np.ndarray:
     for i, _property in enumerate(_properties):
         _new = RAC_from_atom(mol, _property=_property, origin=origin, scope=scope, operation=operation, depth=depth, average=_average[_property])
         if i == 0:
@@ -178,7 +178,7 @@ def multiple_RACs_from_atom(mol: simple_mol, _properties: list, origin: int, sco
             feature = np.concatenate((feature, _new))
     return feature
 
-def multiple_RACs_all_atoms(mol: simple_mol, _properties: list, scope: set, operation: str, depth: int) -> np.ndarray:
+def multiple_RACs_all_atoms(mol, _properties: list, scope: set, operation: str, depth: int) -> np.ndarray:
     for i, _property in enumerate(_properties):
         _new = RAC_all_atoms(mol, _property=_property, scope=scope, operation=operation, depth=depth, average=_average[_property])
         if i == 0:
@@ -187,10 +187,10 @@ def multiple_RACs_all_atoms(mol: simple_mol, _properties: list, scope: set, oper
             feature = np.concatenate((feature, _new))
     return feature
 
-def RAC_f_all(mol: simple_mol, _properties: list, operation: str, depth: int) -> np.ndarray:
+def RAC_f_all(mol, _properties: list, operation: str, depth: int) -> np.ndarray:
     return multiple_RACs_all_atoms(mol=mol, _properties=_properties, scope=set(), operation=operation, depth=depth)
 
-def RAC_mc_all(mol: simple_mol, _properties: list, operation: str, depth: int, average_mc=True) -> np.ndarray:
+def RAC_mc_all(mol, _properties: list, operation: str, depth: int, average_mc=True) -> np.ndarray:
 
     """
     The feature vector is averaged over all metal centers by default.
@@ -206,7 +206,7 @@ def RAC_mc_all(mol: simple_mol, _properties: list, operation: str, depth: int, a
 
     return np.divide(feature, n_mc)
 
-def RAC_mc_ligand(mol: simple_mol, ligand_type: str, _properties: list, operation: str, depth: int, average_mc=True) -> np.ndarray:
+def RAC_mc_ligand(mol, ligand_type: str, _properties: list, operation: str, depth: int, average_mc=True) -> np.ndarray:
 
     """
     The feature vector is averaged over all metal centers and all ligands by default.
@@ -225,7 +225,7 @@ def RAC_mc_ligand(mol: simple_mol, ligand_type: str, _properties: list, operatio
 
     return np.divide(feature, len(ligands))
 
-def RAC_lc_ligand(mol: simple_mol, ligand_type: str, _properties: list, operation: str, depth: int, average_lc=True) -> np.ndarray:
+def RAC_lc_ligand(mol, ligand_type: str, _properties: list, operation: str, depth: int, average_lc=True) -> np.ndarray:
 
     """
     The ligand type is not specified here in order to accommodate more possibilities in the future.
@@ -250,7 +250,7 @@ def RAC_lc_ligand(mol: simple_mol, ligand_type: str, _properties: list, operatio
 
     return np.divide(feature, len(ligands))
 
-def RAC_f_ligand(mol: simple_mol, ligand_type: str, _properties: list, operation: str, depth: int) -> np.ndarray:
+def RAC_f_ligand(mol, ligand_type: str, _properties: list, operation: str, depth: int) -> np.ndarray:
 
     """
     The ligand type is not specified here in order to accommodate more possibilities in the future.
@@ -322,7 +322,7 @@ def RAC_names_CN_NN(depth=3) -> list:
 
     return names
 
-def full_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
+def full_RAC_CN_NN(mol, depth=3) -> np.ndarray:
 
     """
     A modified version of the original RAC-155.
@@ -401,7 +401,7 @@ def updated_RAC_names_CN_NN() -> list:
 
     return names
 
-def updated_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
+def updated_RAC_CN_NN(mol, depth=3) -> np.ndarray:
 
     """
     An updated version. Big difference: 3plus stands for depth=3 and greater. Call mol.distance_cheat(fake_depth=3) first. 
@@ -440,7 +440,7 @@ def updated_RAC_CN_NN(mol: simple_mol, depth=3) -> np.ndarray:
 
         return names
 
-    def RAC_with_NAO_CN_NN(mol:simple_mol, depth=3) -> np.ndarray:
+    def RAC_with_NAO_CN_NN(mol, depth=3) -> np.ndarray:
 
         _properties = ['Weighted energy', 'Natural charge', 
         'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
