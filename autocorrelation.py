@@ -55,13 +55,38 @@ def Moreau_Broto_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.
         assert len(binary_matrix.shape) == 1
         return (operations[operation](array_1, array_2) * binary_matrix).sum()
 
-def Moran_coeff() -> np.float:
+# Autocorrelation inspired by Moran's I
+def Moran_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, denominator: np.float, mean: np.float, with_origin=False) -> np.float:
 
-    return 
+    """
+    The denominator and mean are left as parameters in order to allow revised versions. 
+    """
 
-def Geary_coeff() -> np.float:
+    denominator = binary_matrix.sum() * denominator
+    array_1, array_2 = array_1 - mean, array_2 - mean
+    if with_origin:
+        assert len(binary_matrix.shape) == 1
+        return (binary_matrix * array_2).dot(array_1) / denominator 
+    else:
+        assert len(binary_matrix.shape) == 2
+        return binary_matrix.dot(array_2).dot(array_1) / denominator
 
-    return 
+# Autocorrelation inspired by Geary's C
+def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, denominator: np.float, with_origin=False) -> np.float:
+
+    """
+    The denominator is left as a parameter in order to allow revised versions.
+    """
+
+    denominator = 2 * binary_matrix.sum() * denominator
+    array = (array_1 - array_2)
+    if with_origin:
+        assert len(binary_matrix.shape) == 1
+        return (array * binary_matrix).dot(array) / denominator
+    else:
+        assert len(binary_matrix.shape) == 1
+        return binary_matrix.dot(array).dot(array) / denominator
+
 
 # This section includes all the basic RAC functions. 
 # RAC refers to revised autocorrelation descriptors. 
