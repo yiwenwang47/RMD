@@ -8,10 +8,28 @@ coord_pattern = re.compile("""\"[A-Za-z*]+\",\s*-*\d*.\d*,\s*-*\d*.\d*,\s*-*\d*.
 coord_pattern_2 = re.compile("""[A-Z][a-z]*\s\s*-*\d*.\d*\s*-*\d*.\d*\s*-*\d*.\d*""")
 ind_pattern = re.compile("{\d*,\s*\d*,\s*{\d\d*,\s*(?:\d\d*,\s*)*\d*},\s*{\d\d*,\s*(?:\d\d*,\s*)*\d*}")
 
+class simple_atom(object):
+
+    """
+    A very simple atom object. Intended for much more complicated descriptors.
+    For now, only special properties will be carried by this object.
+    """
+
+    def __init__(self, element: str):
+        self.atom = element
+        self.atomic_mass = elementdict[element][0]
+        self.atomic_number = elementdict[element][1]
+        self.covalent_radius = covalent_radius(element)
+        self.properties = {}
+
+    def add_property(self, name: str, _property: np.float):
+        self.properties[name] = _property
+
 class simple_mol(object):
 
     """
-    A very simple molecule object. Parses information from a specific type of xyz file. Not generic.
+    A very simple molecule object. Parses information from a xyz file. 
+    Now also deals with generic cases.
     The coordinating atoms are also listed as lc, which stands for ligand center.
     Although it might seem rather tedious, regex will be used.
     """
