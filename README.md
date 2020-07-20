@@ -1,5 +1,5 @@
-# Revised cheminformatics descriptors
-This repo is about revised cheminformatics descriptors. They are revised as in being defined with customized specifications such as scope, distance, elemental or other roperties, etc.
+# Revised molecular descriptors
+Commonly used descriptors in cheminformatics revised. They are revised as in being defined with customized specifications such as scope, distance, elemental or other roperties, etc.
 
 ## Revised autocorrelation descriptors
 
