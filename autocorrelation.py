@@ -76,17 +76,21 @@ def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
 
     """
     The denominator is left as a parameter in order to allow revised versions.
+    If with_origin=False, array_2 is assumed to be identical to array_1.s
     """
 
     denominator = 2 * binary_matrix.sum() * denominator
-    array = (array_1 - array_2)
     if with_origin:
         assert len(binary_matrix.shape) == 1
-        return (array * binary_matrix).dot(array) / denominator
+        array = array_1 - array_2
+        result = array * binary_matrix * array
     else:
-        assert len(binary_matrix.shape) == 1
-        return binary_matrix.dot(array).dot(array) / denominator
-
+        assert len(binary_matrix.shape) == 2
+        assert ((array_1-array_2)**2).sum() < 1e-5
+        s = binary_matrix * array_1
+        # number of x_j * x_i ^ 2 - 2 x_i * sum(x_j) + sum(x_j ^ 2)
+        result = binary_matrix.sum(axis=1) * array_1 * array_1 - 2 * array_1 * s.sum(axis=1) + (s * s).sum(axis=1)
+    return result.sum() / denominator
 
 # This section includes all the basic RAC functions. 
 # RAC refers to revised autocorrelation descriptors. 
@@ -279,23 +283,56 @@ def RAC_f_ligand(mol, ligand_type: str, _properties: list, operation: str, depth
     
     return np.divide(feature, len(ligands))
 
-# This section includes the Moran-styled autocorrelation functions.
+# This section includes the Moran-styled and Geary-styled autocorrelation functions.
+# Although many of the functions might seem repetitive, they need to be written separately because unlike RACs,
+# they couldn't be done by any operation other than multiplication.
 
-def Moran_all_atoms(mol, _property: str, scope: set, depth: tuple, molecule_mean=False) -> np.ndarray:
+def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> np.ndarray:
 
     """
+    style: 'Moran' or 'Geary'
     The parameter scope is forced to be a set just to prevent possible replicates. Pass scope = set() to get a full-scope feature.
     """
-    pass
 
-# This section includes the Geary-styled autocorrelation functions.
+    assert style in ['Moran', 'Geary']
+    assert depth[0] != 0 # because it's trivial
+    
+    mol.populate_property(_property)
+    _length = depth[1] - depth[0] + 1
+    a, b = 0, _length
+    feature = np.zeros(_length).astype(np.float)
+    array = mol.properties[_property]
+    matrix = mol.distances
+    if scope:
+        scope = list(scope)
+        array = array[scope]
+        matrix = matrix[scope][:, scope]
+    
+    denominator = (array.std())**2
+    if style == 'Geary':
+        denominator = denominator * len(array) / (len(array)-1)
+    if style == 'Moran':
+        mean = array.mean()
 
-def Geary_all_atoms(mol, _property: str, scope: set, depth: tuple, molecule_mean=False) -> np.ndarray:
+    for i in range(a, b):
+        d = depth[0] + i
+        targets = delta(matrix, d)
+        if style == 'Moran':
+            feature[i] = Moran_ac(array, targets, array, denominator=denominator, mean=mean, with_origin=False)
+        else:
+            feature[i] = Geary_ac(array, targets, array, denominator=denominator, with_origin=False)
+    
+    return feature
 
-    """
-    The parameter scope is forced to be a set just to prevent possible replicates. Pass scope = set() to get a full-scope feature.
-    """
-    pass
+def multiple_ACs_all_atoms(mol, style: str, _properties: list, scope: set, depth: tuple) -> np.ndarray:
+    assert style in ['Moran', 'Geary']
+    for i, _property in enumerate(_properties):
+        _new = AC_all_atoms(mol, style, _property, scope, depth)
+        if i == 0:
+            feature = _new
+        else:
+            feature = np.concatenate((feature, _new))
+    return feature
 
 # The following section is only about RAC features for CN/NN ligands. 
 # full_RAC_CN_NN follows the RAC-155 list. In our case, it's actually RAC-156.
@@ -460,21 +497,21 @@ def updated_RAC_CN_NN(mol, depth=(0,3)) -> np.ndarray:
 
     return full_feature
 
-    # This section is about integrating NBO results into RAC.
-    # First, NAO and NPA(omitted in notation for now). Please see below for detailed explanation on property names.
+# This section is about integrating NBO results into RAC.
+# First, NAO and NPA(omitted in notation for now). Please see below for detailed explanation on property names.
 
-    def NAO_NPA_names() -> list:
+def NAO_NPA_names() -> list:
 
-        _properties = ['Weighted energy', 'Natural charge', 
-        'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
-        'Valence py occupancy', 'Valence py energy', 'Valence pz occupancy', 'Valence pz energy']
+    _properties = ['Weighted energy', 'Natural charge', 
+    'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
+    'Valence py occupancy', 'Valence py energy', 'Valence pz occupancy', 'Valence pz energy']
 
-        return []
+    return []
 
-    def RAC_with_NAO_CN_NN(mol, depth=(1,8)) -> np.ndarray:
+def RAC_with_NAO_CN_NN(mol, depth=(1,8)) -> np.ndarray:
 
-        _properties = ['Weighted energy', 'Natural charge', 
-        'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
-        'Valence py occupancy', 'Valence py energy', 'Valence pz occupancy', 'Valence pz energy']
+    _properties = ['Weighted energy', 'Natural charge', 
+    'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
+    'Valence py occupancy', 'Valence py energy', 'Valence pz occupancy', 'Valence pz energy']
 
-        return []
+    return []
