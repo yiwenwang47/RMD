@@ -90,7 +90,7 @@ def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
 
     """
     The denominator is left as a parameter in order to allow revised versions.
-    If with_origin=False, array_2 is assumed to be identical to array_1.s
+    If with_origin=False, array_2 is assumed to be identical to array_1.
     """
 
     denominator = 2 * binary_matrix.sum() * denominator
@@ -107,7 +107,7 @@ def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
     return result.sum() / denominator
 
 # This section includes the Moran-styled and Geary-styled autocorrelation functions.
-# Although this might seem repetitive, they need to be written separately because unlike RACs,
+# Although this might seem repetitive, they need to be written separately because unlike Moreau-Broto AC,
 # they couldn't be done by any operation other than multiplication.
 
 def AC_from_atom(mol, style: str, _property: str, origin: int, scope: set, depth: tuple) -> np.ndarray:
@@ -126,20 +126,16 @@ def AC_from_atom(mol, style: str, _property: str, origin: int, scope: set, depth
     d_from_origin = mol.distances[origin].copy()
     array_2 = mol.properties[_property].copy()
     if scope:
-        _scope = scope.copy()
-        extra_array = array_2[list(_scope.update(origin))] # includes the origin in mean/std calculation later
         scope = list(scope)
         d_from_origin = d_from_origin[scope]
         array_2 = array_2[scope]
-    else:
-        extra_array = array_2
     array_1 = origin_property * np.ones(len(d_from_origin))
 
-    denominator = (extra_array.std())**2
+    denominator = (array_2.std())**2
     if style == 'Geary':
-        denominator = denominator * len(extra_array) / (len(extra_array)-1)
+        denominator = denominator * len(array_2) / (len(array_2)-1)
     if style == 'Moran':
-        mean = extra_array.mean()
+        mean = array_2.mean()
 
     for i in range(_length):
         d = depth[0] + i
@@ -186,11 +182,9 @@ def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> n
     
     return feature
 
-# This section includes all the basic RAC functions. 
-# RAC refers to revised autocorrelation descriptors. 
-# For now, in this section the term autocorrelation only refers to Moreau-Broto style autocorrelation.
+# This section includes revised Moreau-Broto autocorrelation functions.
 
-def RAC_from_atom(mol, _property: str, origin: int, scope: set, operation: str, depth: tuple, average: bool) -> np.ndarray:
+def MB_from_atom(mol, _property: str, origin: int, scope: set, operation: str, depth: tuple, average: bool) -> np.ndarray:
     
     """
     Limiting the first atom in any atom pair to the given origin atom. 
@@ -228,7 +222,7 @@ def RAC_from_atom(mol, _property: str, origin: int, scope: set, operation: str, 
 
     return feature
 
-def RAC_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, average: bool) -> np.ndarray:
+def MB_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, average: bool) -> np.ndarray:
      
     """
     Does not only start from any specific center.
@@ -280,6 +274,7 @@ _average = {
     'vdW radius': False
 }
 
+# This section includes higher level RAC functions.
 # From this point on, all these RAC functions will support all three styles.
 
 def multiple_RACs_from_atom(mol, _properties: list, origin: int, scope: set, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
@@ -287,7 +282,7 @@ def multiple_RACs_from_atom(mol, _properties: list, origin: int, scope: set, dep
         raise StyleError(style)
     for i, _property in enumerate(_properties):
         if style == 'Moreau-Broto':
-            _new = RAC_from_atom(mol, _property=_property, origin=origin, scope=scope, operation=operation, depth=depth, average=_average[_property])
+            _new = MB_from_atom(mol, _property=_property, origin=origin, scope=scope, operation=operation, depth=depth, average=_average[_property])
         else:
             _new = AC_from_atom(mol, style=style, _property=_property, origin=origin, scope=scope, depth=depth)
         if i == 0:
@@ -301,7 +296,7 @@ def multiple_RACs_all_atoms(mol, _properties: list, scope: set, depth: tuple, op
         raise StyleError(style)
     for i, _property in enumerate(_properties):
         if style == 'Moreau-Broto':
-            _new = RAC_all_atoms(mol, _property=_property, scope=scope, operation=operation, depth=depth, average=_average[_property])
+            _new = MB_all_atoms(mol, _property=_property, scope=scope, operation=operation, depth=depth, average=_average[_property])
         else:
             _new = AC_all_atoms(mol, style=style, _property=_property, scope=scope, depth=depth)
         if i == 0:
@@ -313,7 +308,7 @@ def multiple_RACs_all_atoms(mol, _properties: list, scope: set, depth: tuple, op
 def RAC_f_all(mol, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
     return multiple_RACs_all_atoms(mol=mol, _properties=_properties, scope=set(), depth=depth, operation=operation, style=style)
 
-def RAC_mc_all(mol, _properties: list, operation: str, depth: tuple, average_mc=True) -> np.ndarray:
+def RAC_mc_all(mol, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', average_mc=True) -> np.ndarray:
 
     """
     The feature vector is averaged over all metal centers by default.
@@ -323,13 +318,13 @@ def RAC_mc_all(mol, _properties: list, operation: str, depth: tuple, average_mc=
     assert n_mc > 0
     feature = init_feature(len(_properties), operation, depth[1]-depth[0])
     for mc in mol.mcs:
-        feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=set(), operation=operation, depth=depth)
+        feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=set(), depth=depth, operation=operation, style=style)
+    
     if not average_mc:
         return feature
-
     return np.divide(feature, n_mc)
 
-def RAC_mc_ligand(mol, ligand_type: str, _properties: list, operation: str, depth: tuple, average_mc=True) -> np.ndarray:
+def RAC_mc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', average_mc=True) -> np.ndarray:
 
     """
     The feature vector is averaged over all metal centers and all ligands by default.
@@ -342,13 +337,13 @@ def RAC_mc_ligand(mol, ligand_type: str, _properties: list, operation: str, dept
     for ligand in ligands:
         for mc in mol.mcs:
             scope = set(mol.ligand_ind[ligand]).update([mc])
-            feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, operation=operation, depth=depth)
+            feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, depth=depth, operation=operation, style=style)
+    
     if average_mc:
         feature = np.divide(feature, n_mc) 
-
     return np.divide(feature, len(ligands))
 
-def RAC_lc_ligand(mol, ligand_type: str, _properties: list, operation: str, depth: tuple, average_lc=True) -> np.ndarray:
+def RAC_lc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', average_lc=True) -> np.ndarray:
 
     """
     The ligand type is not specified here in order to accommodate more possibilities in the future.
@@ -364,13 +359,12 @@ def RAC_lc_ligand(mol, ligand_type: str, _properties: list, operation: str, dept
         lcs = mol.lcs[ligand]
         scope = set(mol.ligand_ind[ligand])
         for lc in lcs:
-            ligand_feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=lc, scope=scope, operation=operation, depth=depth)
+            ligand_feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=lc, scope=scope, depth=depth, operation=operation, style=style)
         ligand_feature = np.divide(ligand_feature, len(lcs))
         feature += ligand_feature
 
     if not average_lc:
         return feature
-
     return np.divide(feature, len(ligands))
 
 def RAC_f_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
