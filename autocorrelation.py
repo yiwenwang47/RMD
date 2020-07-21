@@ -106,6 +106,86 @@ def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
         result = binary_matrix.sum(axis=1) * array_1 * array_1 - 2 * array_1 * s.sum(axis=1) + (s * s).sum(axis=1)
     return result.sum() / denominator
 
+# This section includes the Moran-styled and Geary-styled autocorrelation functions.
+# Although this might seem repetitive, they need to be written separately because unlike RACs,
+# they couldn't be done by any operation other than multiplication.
+
+def AC_from_atom(mol, style: str, _property: str, origin: int, scope: set, depth: tuple) -> np.ndarray:
+
+    """
+    Style: 'Moran' or 'Geary'
+    The parameter scope is forced to be a set just to prevent possible replicates. Pass scope = set() to get a full-scope feature.
+    """
+
+    assert depth[0] != 0 # because it's trivial
+
+    mol.populate_property(_property)
+    _length = depth[1] - depth[0] + 1
+    feature = np.zeros(_length).astype(np.float)
+    origin_property = mol.properties[_property][origin]
+    d_from_origin = mol.distances[origin].copy()
+    array_2 = mol.properties[_property].copy()
+    if scope:
+        _scope = scope.copy()
+        extra_array = array_2[list(_scope.update(origin))] # includes the origin in mean/std calculation later
+        scope = list(scope)
+        d_from_origin = d_from_origin[scope]
+        array_2 = array_2[scope]
+    else:
+        extra_array = array_2
+    array_1 = origin_property * np.ones(len(d_from_origin))
+
+    denominator = (extra_array.std())**2
+    if style == 'Geary':
+        denominator = denominator * len(extra_array) / (len(extra_array)-1)
+    if style == 'Moran':
+        mean = extra_array.mean()
+
+    for i in range(_length):
+        d = depth[0] + i
+        targets = delta(d_from_origin, d)
+        if style == 'Moran':
+            feature[i] = Moran_ac(array_1, targets, array_2, denominator=denominator, mean=mean, with_origin=True)
+        else:
+            feature[i] = Geary_ac(array_1, targets, array_2, denominator=denominator, with_origin=True)
+    
+    return feature
+
+def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> np.ndarray:
+
+    """
+    Style: 'Moran' or 'Geary'
+    The parameter scope is forced to be a set just to prevent possible replicates. Pass scope = set() to get a full-scope feature.
+    """
+
+    assert depth[0] != 0 # because it's trivial
+    
+    mol.populate_property(_property)
+    _length = depth[1] - depth[0] + 1
+    feature = np.zeros(_length).astype(np.float)
+    array = mol.properties[_property]
+    matrix = mol.distances
+    if scope:
+        scope = list(scope)
+        array = array[scope]
+        matrix = matrix[scope][:, scope]
+    
+    denominator = (array.std())**2
+    if style == 'Geary':
+        denominator = denominator * len(array) / (len(array)-1)
+    if style == 'Moran':
+        mean = array.mean()
+
+    for i in range(_length):
+        d = depth[0] + i
+        targets = delta(matrix, d)
+        if style == 'Moran':
+            feature[i] = Moran_ac(array, targets, array, denominator=denominator, mean=mean, with_origin=False)
+        else:
+            feature[i] = Geary_ac(array, targets, array, denominator=denominator, with_origin=False)
+    
+    return feature
+
 # This section includes all the basic RAC functions. 
 # RAC refers to revised autocorrelation descriptors. 
 # For now, in this section the term autocorrelation only refers to Moreau-Broto style autocorrelation.
@@ -121,8 +201,8 @@ def RAC_from_atom(mol, _property: str, origin: int, scope: set, operation: str, 
     mol.populate_property(_property)
     _length = depth[1] - depth[0] + 1
     feature = np.zeros(_length).astype(np.float)
-    d_from_origin = mol.distances[origin]
-    array_2 = mol.properties[_property]
+    d_from_origin = mol.distances[origin].copy()
+    array_2 = mol.properties[_property].copy()
     if scope:
         scope = list(scope)
         d_from_origin = d_from_origin[scope]
@@ -158,8 +238,8 @@ def RAC_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple,
     mol.populate_property(_property)
     _length = depth[1] - depth[0] + 1
     feature = np.zeros(_length).astype(np.float)
-    array = mol.properties[_property]
-    matrix = mol.distances
+    array = mol.properties[_property].copy()
+    matrix = mol.distances.copy()
     n_0 = mol.natoms
     if scope:
         scope = list(scope)
@@ -200,9 +280,16 @@ _average = {
     'vdW radius': False
 }
 
-def multiple_RACs_from_atom(mol, _properties: list, origin: int, scope: set, operation: str, depth: tuple) -> np.ndarray:
+# From this point on, all these RAC functions will support all three styles.
+
+def multiple_RACs_from_atom(mol, _properties: list, origin: int, scope: set, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
+    if style not in ['Moreau-Broto', 'Moran', 'Geary']:
+        raise StyleError(style)
     for i, _property in enumerate(_properties):
-        _new = RAC_from_atom(mol, _property=_property, origin=origin, scope=scope, operation=operation, depth=depth, average=_average[_property])
+        if style == 'Moreau-Broto':
+            _new = RAC_from_atom(mol, _property=_property, origin=origin, scope=scope, operation=operation, depth=depth, average=_average[_property])
+        else:
+            _new = AC_from_atom(mol, style=style, _property=_property, origin=origin, scope=scope, depth=depth)
         if i == 0:
             feature = _new
         else:
@@ -301,46 +388,6 @@ def RAC_f_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operati
         feature += multiple_RACs_all_atoms(mol, _properties=_properties, scope=scope, depth=depth, operation=operation, style=style)
     
     return np.divide(feature, len(ligands))
-
-# This section includes the Moran-styled and Geary-styled autocorrelation functions.
-# Although many of the functions might seem repetitive, they need to be written separately because unlike RACs,
-# they couldn't be done by any operation other than multiplication.
-
-def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> np.ndarray:
-
-    """
-    style: 'Moran' or 'Geary'
-    The parameter scope is forced to be a set just to prevent possible replicates. Pass scope = set() to get a full-scope feature.
-    """
-
-    assert depth[0] != 0 # because it's trivial
-    
-    mol.populate_property(_property)
-    _length = depth[1] - depth[0] + 1
-    a, b = 0, _length
-    feature = np.zeros(_length).astype(np.float)
-    array = mol.properties[_property]
-    matrix = mol.distances
-    if scope:
-        scope = list(scope)
-        array = array[scope]
-        matrix = matrix[scope][:, scope]
-    
-    denominator = (array.std())**2
-    if style == 'Geary':
-        denominator = denominator * len(array) / (len(array)-1)
-    if style == 'Moran':
-        mean = array.mean()
-
-    for i in range(a, b):
-        d = depth[0] + i
-        targets = delta(matrix, d)
-        if style == 'Moran':
-            feature[i] = Moran_ac(array, targets, array, denominator=denominator, mean=mean, with_origin=False)
-        else:
-            feature[i] = Geary_ac(array, targets, array, denominator=denominator, with_origin=False)
-    
-    return feature
 
 # The following section is only about RAC features for CN/NN ligands. 
 # full_RAC_CN_NN follows the RAC-155 list. In our case, it's actually RAC-156.
