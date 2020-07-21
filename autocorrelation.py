@@ -6,6 +6,20 @@ from .elements import *
 from .utils import simple_graph, create_feature_graph
 import numpy as np
 
+class StyleError(Exception):
+
+    """
+    Exception raised when an incorrect autocorrelation style is given.
+    """
+
+    def __init__(self, style, message="is not any of the allowed styles: Moreau-Broto, Moran or Geary"):
+        self.style = style
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f'{self.style} {self.message}'
+
 delta = lambda x, y: np.int64(x==y)
 
 def feature_name(start, scope, _property, operation, d):
@@ -195,17 +209,22 @@ def multiple_RACs_from_atom(mol, _properties: list, origin: int, scope: set, ope
             feature = np.concatenate((feature, _new))
     return feature
 
-def multiple_RACs_all_atoms(mol, _properties: list, scope: set, operation: str, depth: tuple) -> np.ndarray:
+def multiple_RACs_all_atoms(mol, _properties: list, scope: set, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
+    if style not in ['Moreau-Broto', 'Moran', 'Geary']:
+        raise StyleError(style)
     for i, _property in enumerate(_properties):
-        _new = RAC_all_atoms(mol, _property=_property, scope=scope, operation=operation, depth=depth, average=_average[_property])
+        if style == 'Moreau-Broto':
+            _new = RAC_all_atoms(mol, _property=_property, scope=scope, operation=operation, depth=depth, average=_average[_property])
+        else:
+            _new = AC_all_atoms(mol, style=style, _property=_property, scope=scope, depth=depth)
         if i == 0:
             feature = _new
         else:
             feature = np.concatenate((feature, _new))
     return feature
 
-def RAC_f_all(mol, _properties: list, operation: str, depth: tuple) -> np.ndarray:
-    return multiple_RACs_all_atoms(mol=mol, _properties=_properties, scope=set(), operation=operation, depth=depth)
+def RAC_f_all(mol, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
+    return multiple_RACs_all_atoms(mol=mol, _properties=_properties, scope=set(), depth=depth, operation=operation, style=style)
 
 def RAC_mc_all(mol, _properties: list, operation: str, depth: tuple, average_mc=True) -> np.ndarray:
 
@@ -267,7 +286,7 @@ def RAC_lc_ligand(mol, ligand_type: str, _properties: list, operation: str, dept
 
     return np.divide(feature, len(ligands))
 
-def RAC_f_ligand(mol, ligand_type: str, _properties: list, operation: str, depth: tuple) -> np.ndarray:
+def RAC_f_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
 
     """
     The ligand type is not specified here in order to accommodate more possibilities in the future.
@@ -279,7 +298,7 @@ def RAC_f_ligand(mol, ligand_type: str, _properties: list, operation: str, depth
 
     for ligand in ligands:
         scope = set(mol.ligand_ind[ligand])
-        feature += multiple_RACs_all_atoms(mol, _properties=_properties, scope=scope, operation=operation, depth=depth)
+        feature += multiple_RACs_all_atoms(mol, _properties=_properties, scope=scope, depth=depth, operation=operation, style=style)
     
     return np.divide(feature, len(ligands))
 
@@ -294,7 +313,6 @@ def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> n
     The parameter scope is forced to be a set just to prevent possible replicates. Pass scope = set() to get a full-scope feature.
     """
 
-    assert style in ['Moran', 'Geary']
     assert depth[0] != 0 # because it's trivial
     
     mol.populate_property(_property)
@@ -322,16 +340,6 @@ def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> n
         else:
             feature[i] = Geary_ac(array, targets, array, denominator=denominator, with_origin=False)
     
-    return feature
-
-def multiple_ACs_all_atoms(mol, style: str, _properties: list, scope: set, depth: tuple) -> np.ndarray:
-    assert style in ['Moran', 'Geary']
-    for i, _property in enumerate(_properties):
-        _new = AC_all_atoms(mol, style, _property, scope, depth)
-        if i == 0:
-            feature = _new
-        else:
-            feature = np.concatenate((feature, _new))
     return feature
 
 # The following section is only about RAC features for CN/NN ligands. 
