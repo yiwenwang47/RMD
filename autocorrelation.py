@@ -561,7 +561,16 @@ def NAO_NPA_names() -> list:
     'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
     'Valence py occupancy', 'Valence py energy', 'Valence pz occupancy', 'Valence pz energy']
 
-    return []
+    styles = ['MB', 'M', 'G']
+
+    def helper(start, scope):
+        _new = []
+        for style in styles:
+            for _property in _properties:
+                _new += ['_'.join([start, scope, style, property_notation[_property], str(d)]) for d in range(1, 6)]
+        return _new
+
+    return helper('f', 'all') + helper('f', 'CN') + helper('f', 'NN')
 
 def RAC_with_NAO_CN_NN(mol, depth=(1,5)) -> np.ndarray:
 
