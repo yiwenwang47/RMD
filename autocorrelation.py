@@ -255,8 +255,6 @@ def MB_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, 
         feature[i] = Moreau_Broto_ac(array, targets, array, operation)
         if average and n_d > 0:
             feature[i] = np.divide(feature[i], n_d)
-        if not average:
-            feature[i] = np.divide(feature[i], 2) #because any atom pair (i,j) is counted twice
 
     if operation == 'subtract' or operation == 'divide':
         return feature[1:] #because zero depth is trivial
@@ -282,7 +280,11 @@ def multiple_RACs_from_atom(mol, _properties: list, origin: int, scope: set, dep
         raise StyleError(style)
     for i, _property in enumerate(_properties):
         if style == 'Moreau-Broto':
-            _new = MB_from_atom(mol, _property=_property, origin=origin, scope=scope, operation=operation, depth=depth, average=_average[_property])
+            if _property in _average:
+                average = _average[_property]
+            else:
+                average = False
+            _new = MB_from_atom(mol, _property=_property, origin=origin, scope=scope, operation=operation, depth=depth, average=average)
         else:
             _new = AC_from_atom(mol, style=style, _property=_property, origin=origin, scope=scope, depth=depth)
         if i == 0:
@@ -296,7 +298,11 @@ def multiple_RACs_all_atoms(mol, _properties: list, scope: set, depth: tuple, op
         raise StyleError(style)
     for i, _property in enumerate(_properties):
         if style == 'Moreau-Broto':
-            _new = MB_all_atoms(mol, _property=_property, scope=scope, operation=operation, depth=depth, average=_average[_property])
+            if _property in _average:
+                average = _average[_property]
+            else:
+                average = False
+            _new = MB_all_atoms(mol, _property=_property, scope=scope, operation=operation, depth=depth, average=average)
         else:
             _new = AC_all_atoms(mol, style=style, _property=_property, scope=scope, depth=depth)
         if i == 0:
@@ -557,10 +563,24 @@ def NAO_NPA_names() -> list:
 
     return []
 
-def RAC_with_NAO_CN_NN(mol, depth=(1,8)) -> np.ndarray:
+def RAC_with_NAO_CN_NN(mol, depth=(1,5)) -> np.ndarray:
 
     _properties = ['Weighted energy', 'Natural charge', 
     'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
     'Valence py occupancy', 'Valence py energy', 'Valence pz occupancy', 'Valence pz energy']
 
-    return []
+    f_all_MB = RAC_f_all(mol, _properties=_properties, depth=depth, operation='multiply', style='Moreau-Broto')
+    f_all_M = RAC_f_all(mol, _properties=_properties, depth=depth, style='Moran')
+    f_all_G = RAC_f_all(mol, _properties=_properties, depth=depth, style='Geary')
+    
+    f_CN_MB = RAC_f_ligand(mol, 'CN', _properties=_properties, depth=depth, operation='multiply', style='Moreau-Broto')
+    f_CN_M = RAC_f_ligand(mol, 'CN', _properties=_properties, depth=depth, style='Moran')
+    f_CN_G = RAC_f_ligand(mol, 'CN', _properties=_properties, depth=depth, style='Geary')
+    
+    f_NN_MB = RAC_f_ligand(mol, 'NN', _properties=_properties, depth=depth, operation='multiply', style='Moreau-Broto')
+    f_NN_M = RAC_f_ligand(mol, 'NN', _properties=_properties, depth=depth, style='Moran')
+    f_NN_G = RAC_f_ligand(mol, 'NN', _properties=_properties, depth=depth, style='Geary')
+    
+    full_feature = np.concatenate((f_all_MB, f_all_M, f_all_G, f_CN_MB, f_CN_M, f_CN_G, f_NN_MB, f_NN_M, f_NN_G))
+
+    return full_feature
