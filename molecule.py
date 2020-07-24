@@ -1,12 +1,7 @@
-import re
 import numpy as np
 from .elements import *
 from collections import defaultdict
 from scipy.spatial import distance_matrix
-
-coord_pattern = re.compile("""\"[A-Za-z*]+\",\s*-*\d*.\d*,\s*-*\d*.\d*,\s*-*\d*.\d*""")
-coord_pattern_2 = re.compile("""[A-Z][a-z]*\s\s*-*\d*.\d*\s*-*\d*.\d*\s*-*\d*.\d*""")
-ind_pattern = re.compile("{\d*,\s*\d*,\s*{\d\d*,\s*(?:\d\d*,\s*)*\d*},\s*{\d\d*,\s*(?:\d\d*,\s*)*\d*}")
 
 class simple_atom(object):
 
@@ -31,64 +26,49 @@ class simple_mol(object):
     A very simple molecule object. Parses information from a xyz file. 
     Now also deals with generic cases.
     The coordinating atoms are also listed as lc, which stands for ligand center.
-    Although it might seem rather tedious, regex will be used.
     """
 
-    def __init__(self, filename: str):
-        f = open(filename, 'r')
-        self.text = f.read().replace('\n', ' ')
+    def __init__(self):
         self.ligand_types = [] #could be determined later by any custom functions, must be in the same order as self.lcs and self.ligand_ind
         self.properties = {}
     
-    def get_coords(self, with_ind=True):
+    def from_file(self, filename: str):
+        f = open(filename, 'r')
+        self.text = f.read().split('\n')
+
+    def __repr__(self):
+        return ', '.join(self.atoms)
+
+    def get_coords(self):
 
         """
         Parse the coordinates from an xyz file.
         """
-        if with_ind:
-            coords_lines = coord_pattern.findall(self.text)
-        else:
-            coords_lines = coord_pattern_2.findall(self.text)
-        def helper(line):
-            line = line.translate({ord(i): None for i in '",'}).split()
-            atom = line[0]
-            coords = np.array([float(line[i]) for i in range(1,4)])
+
+        coord_lines = []
+        for line in self.text:
+            split = line.split()
+            if len(split) == 4:
+                coord_lines.append(split)
+        def helper(split):
+            atom = split[0]
+            coords = np.array([float(split[i]) for i in range(1,4)])
             return atom, coords
-        atom, coords = helper(coords_lines[0])
+        atom, coords = helper(coord_lines[0])
         atoms = [atom]
         coords_all = np.array([coords])
         self.mcs = []
         if ismetal(atom):
             self.mcs.append(0)
-        for i in range(1, len(coords_lines)):
-            atom, coords = helper(coords_lines[i])
+        for i in range(1, len(coord_lines)):
+            atom, coords = helper(coord_lines[i])
             atoms.append(atom)
             if ismetal(atom):
                 self.mcs.append(i)
             coords_all = np.concatenate((coords_all, np.array([coords])), axis=0)
-       
         self.atoms = atoms
         self.natoms = len(atoms)
         self.coords_all = coords_all
-    
-    def get_ligand_ind(self):
-
-        """
-        Parse the ligand indices from the xyz file. This only works for the very specific format that we have right now.
-        """
-
-        ind_lines = ind_pattern.findall(self.text)
-        def helper(line):
-            line = line.translate({ord(i): None for i in "{} "}).split(',')
-            ind = [int(i)-1 for i in line] # int(i)-1 is included because the indices are generated in Mathematica.
-            lcs = ind[:2]
-            return lcs, ind
-        self.lcs = []
-        self.ligand_ind = []
-        for line in ind_lines:
-            lcs, ind = helper(line)
-            self.lcs.append(lcs)
-            self.ligand_ind.append(ind)
 
     def init_distances(self):
         self.distances = self.graph.copy()
@@ -110,24 +90,10 @@ class simple_mol(object):
         New option: set all the longer distances as fake_depth.
         """
 
-        for atom in range(self.natoms):
-            bfs_distances(self, atom, depth)
-        
+        for ind in range(self.natoms):
+            bfs_distances(self, ind, depth)
         if fake_depth != 0:
             self.distance_cheat(fake_depth)
-
-    def parse_with_ind(self):
-
-        """
-        The simplest case where indices of ligand atoms are available. Call this first before calculating RAC features.
-        """
-
-        self.get_coords()
-        self.get_ligand_ind()
-        del self.text
-        self.graph = get_graph_by_ligands(self)
-        self.custom_property('topology', self.graph.sum(axis=0))
-        self.init_distances()
     
     def parse_all(self):
 
@@ -135,7 +101,7 @@ class simple_mol(object):
         A more general case.
         """
 
-        self.get_coords(with_ind=False)
+        self.get_coords()
         del self.text
         self.graph = get_graph_full_scope(self)
         bfs_ligands(self)
@@ -147,9 +113,9 @@ class simple_mol(object):
         return np.where(con==1)[0]
 
     def get_bonded_atoms_multiple(self, atom_ind: list) -> list:
-        ind = set(atom_ind)
+        indices = set(atom_ind)
         bonded = set()
-        for i in ind:
+        for i in indices:
             bonded.update(self.get_bonded_atoms(i))
         return list(bonded)
 
@@ -183,7 +149,7 @@ class simple_mol(object):
 # These following functions are devoted to figuring out the connectivities and distances.
 # Following the conventional approach of setting bond length cutoffs.
 
-_get = lambda l, ind: [l[i] for i in ind]
+_get = lambda l, indices: [l[i] for i in indices]
 
 def _connect(graph, i, j):
     graph[i][j] = 1
@@ -241,12 +207,12 @@ def get_graph_full_scope(mol: simple_mol) -> np.ndarray:
     graph = np.zeros((n, n))
     cutoffs = get_cutoffs(mol.atoms)
 
-    matrix = distance_matrix(mol.coords_all, mol.coords_all)
+    mol.matrix = distance_matrix(mol.coords_all, mol.coords_all)
 
     for i in range(n):
         for j in range(i+1, n):
             atom_i, atom_j = mol.atoms[i], mol.atoms[j]
-            if matrix[i][j] <= cutoffs[atom_i][atom_j]:
+            if mol.matrix[i][j] <= cutoffs[atom_i][atom_j]:
                 _connect(graph, i, j)
     return graph
 
@@ -356,16 +322,14 @@ def determine_CN_NN(mol: simple_mol):
         else:
             mol.ligand_types.append('NN')
 
-def get_mol(filename: str, with_ind=True, depth=5) -> simple_mol:
+def get_mol(filename: str, depth=5, fake_depth=0) -> simple_mol:
 
     """
     Creates a simple_mol object from a xyz file.
     """
 
-    mol = simple_mol(filename)
-    if with_ind:
-        mol.parse_with_ind()
-    else:
-        mol.parse_all()
-    mol.get_all_distances(depth)
+    mol = simple_mol()
+    mol.from_file(filename)
+    mol.parse_all()
+    mol.get_all_distances(depth, fake_depth=fake_depth)
     return mol
