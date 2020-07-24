@@ -1,6 +1,7 @@
 import numpy as np
 from .elements import *
 from collections import defaultdict
+import copy
 from scipy.spatial import distance_matrix
 
 class simple_atom(object):
@@ -16,6 +17,15 @@ class simple_atom(object):
         self.atomic_number = elementdict[element][1]
         self.covalent_radius = covalent_radius(element)
         self.properties = {}
+    
+    def __str__(self):
+        return self.atom
+
+    def __repr__(self):
+        return self.atom
+    
+    def copy(self):
+        return copy.deepcopy(self)
 
     def add_property(self, name: str, _property: np.float):
         self.properties[name] = _property
@@ -38,6 +48,9 @@ class simple_mol(object):
 
     def __repr__(self):
         return ', '.join(self.atoms)
+
+    def copy(self):
+        return copy.deepcopy(self)
 
     def get_coords(self):
 
