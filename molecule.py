@@ -82,6 +82,26 @@ class simple_mol(object):
         self.atoms = atoms
         self.natoms = len(atoms)
         self.coords_all = coords_all
+    
+    def create_dict_graph(self):
+        self.dict_graph = {}
+        for i in range(self.natoms):
+            self.dict_graph[i] = list(np.where(self.graph[i]==1)[0])
+
+    def get_special_graph_copy(self):
+
+        """
+        A graph cheat. Removes the mcs.
+        Only to be called in get_cycles()
+        """
+
+        copy = self.dict_graph.copy()
+        for mc in self.mcs:
+            copy.pop(mc, None)
+        for lcs in self.lcs:
+            for i in lcs:
+                copy[i] = list(set(copy[i])-set(self.mcs))
+        return copy
 
     def init_distances(self):
         self.distances = self.graph.copy()
@@ -316,6 +336,49 @@ def bfs_ligands(mol: simple_mol):
         mol.ligand_ind.append(list(ligand))
     
     mol.graph = graph_copy
+
+def get_cycles(graph: dict, origin: int, verbose=False) -> list:
+
+    """
+    A very simple dfs algorithm to find cycles in a graph.
+    Origin does not have to be an integer.
+    """
+
+    visited = set()
+    current = []
+    cycles = []
+    def dfs(visited, current, graph, node, cycles):
+        if node not in visited:
+            if verbose:
+                print(node + ' is visited')
+            visited.add(node)
+            current.append(node)
+            if set(graph[node])&visited:
+                i = len(current) - 2
+                if i >= 0:
+                    for neighbor in set(graph[node])&visited:
+                        j = min(current.index(neighbor), i)
+                        if j < i:
+                                cycles.append(current[j:])
+            if set(graph[node]).issubset(visited):
+                current = current[:-1]
+            else:
+                for neighbour in graph[node]:
+                    dfs(visited, current.copy(), graph, neighbour, cycles)
+    dfs(visited, current, graph, origin, cycles)
+    return cycles
+
+def get_cycles_molecule(mol: simple_mol) -> list:
+    
+    """
+    Returns a list of all the cycles in the ligands.
+    """
+
+    copy = mol.get_special_graph_copy()
+    cycles = []
+    for lc in mol.lcs:
+        cycles += get_cycles(copy, lc[0], verbose=False)
+    return cycles
 
 def determine_CN_NN(mol: simple_mol):
 
