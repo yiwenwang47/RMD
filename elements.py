@@ -163,20 +163,21 @@ property_notation = {
     'electronegativity': 'chi',
     'atomic number': 'Z',
     'identity': "I",
-    'covalent radius': 'S',
+    'covalent radius': 'rc',
     'topology': "T",
     'polarizability': "alpha",
-    'vdW radius': 'r',
+    'vdW radius': 'rv',
     'Weighted energy': 'Enao',
-    'Natural charge': 'Qnao',
-    'Valence s occupancy': 'Os',
-    'Valence s energy': 'Es',
-    'Valence px occupancy': 'Opx',
-    'Valence px energy': 'Epx',
-    'Valence py occupancy': 'Opy',
-    'Valence py energy': 'Epy',
-    'Valence pz occupancy': 'Opz',
-    'Valence pz energy': 'Epz'
+    'Natural charge': 'Q',
+    'Valence s occupancy': 'Occ_s',
+    'Valence s energy': 'E_s',
+    'Valence px occupancy': 'Occ_px',
+    'Valence px energy': 'E_px',
+    'Valence py occupancy': 'Occ_py',
+    'Valence py energy': 'E_py',
+    'Valence pz occupancy': 'Occ_pz',
+    'Valence pz energy': 'E_pz',
+    'Natural Spin Density': 'd'
 }
 
 # The following variables are still related to property calculation, although not necessarily directly relate to any element.

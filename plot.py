@@ -20,7 +20,27 @@ def plot_3d(mol: simple_mol):
                 ax.plot(xs=[c1[0], c2[0]], ys=[c1[1], c2[1]], zs=[c1[2], c2[2]])
     return ax
 
-def plot_partial_3d(mol: simple_mol, ligand_type: str, plot_mc=True):
+def plot_partial_3d(mol: simple_mol, scope: set):
+
+    """
+    A very simple way to plot a molecule in a 3d fashion with a specified scope.
+    """
+
+    scope = list(scope)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    coords = mol.coords_all[scope]
+    graph = mol.graph[scope][:, scope]
+    ax.scatter(xs=coords[:, 0],ys=coords[:, 1],zs=coords[:, 2],s=50)
+    n = len(scope)
+    for i in range(n):
+        for j in range(i+1, n):
+            if graph[i][j] == 1:
+                c1, c2 = coords[i], coords[j]
+                ax.plot(xs=[c1[0], c2[0]], ys=[c1[1], c2[1]], zs=[c1[2], c2[2]])
+    return ax
+
+def plot_ligand_3d(mol: simple_mol, ligand_type: str, plot_mc=True):
 
     """
     A very simple way to plot a molecule in a 3d fashion with only the specified type of ligand.

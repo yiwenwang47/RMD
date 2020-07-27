@@ -350,7 +350,7 @@ def get_cycles(graph: dict, origin: int, verbose=False) -> list:
     def dfs(visited, current, graph, node, cycles):
         if node not in visited:
             if verbose:
-                print(node + ' is visited')
+                print(str(node) + ' is visited')
             visited.add(node)
             current.append(node)
             if set(graph[node])&visited:
