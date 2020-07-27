@@ -25,8 +25,8 @@ delta = lambda x, y: np.int64(x==y)
 def feature_name(start, scope, _property, operation, d):
 
     """
-    Gives feature name based on all specifications. 
-    Intended to be self-explanatory as possible. 
+    Gives feature name or RAC based on all specifications. 
+    Intended to be as self-explanatory as possible. 
     """
 
     return '_'.join([start, scope, property_notation[_property], operation_name[operation], str(d)])
@@ -77,6 +77,8 @@ def Moran_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
     """
 
     denominator = binary_matrix.sum() * denominator
+    if denominator == 0:
+        return np.float(0)
     array_1, array_2 = array_1 - mean, array_2 - mean
     if with_origin:
         assert len(binary_matrix.shape) == 1
@@ -94,6 +96,8 @@ def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
     """
 
     denominator = 2 * binary_matrix.sum() * denominator
+    if denominator == 0:
+        return np.float(0)
     if with_origin:
         assert len(binary_matrix.shape) == 1
         array = array_1 - array_2
@@ -132,6 +136,8 @@ def AC_from_atom(mol, style: str, _property: str, origin: int, scope: set, depth
     array_1 = origin_property * np.ones(len(d_from_origin))
 
     denominator = (array_2.std())**2
+    if denominator == 0:
+        return feature
     if style == 'Geary':
         denominator = denominator * len(array_2) / (len(array_2)-1)
     if style == 'Moran':
@@ -167,6 +173,8 @@ def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> n
         matrix = matrix[scope][:, scope]
     
     denominator = (array.std())**2
+    if denominator == 0:
+        return feature
     if style == 'Geary':
         denominator = denominator * len(array) / (len(array)-1)
     if style == 'Moran':
@@ -555,28 +563,40 @@ def updated_RAC_CN_NN(mol, depth=(0,3)) -> np.ndarray:
 # This section is about integrating NBO results into RAC.
 # First, NAO and NPA(omitted in notation for now). Please see below for detailed explanation on property names.
 
-def NAO_NPA_names() -> list:
+def NAO_NPA_names(option='Singlet') -> list:
 
     _properties = ['Weighted energy', 'Natural charge', 
     'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
     'Valence py occupancy', 'Valence py energy', 'Valence pz occupancy', 'Valence pz energy']
+    if option == 'Triplet':
+        _properties = _properties + ['Natural Spin Density']
+    _notations = [property_notation[_property] for _property in _properties]
+    _suffix = {
+        'Singlet': '_S',
+        'Triplet': '_T',
+        'Difference': '_diff'
+    }
+    _notations = [_notaion+_suffix[option] for _notaion in _notations]
 
     styles = ['MB', 'M', 'G']
 
     def helper(start, scope):
         _new = []
         for style in styles:
-            for _property in _properties:
-                _new += ['_'.join([start, scope, style, property_notation[_property], str(d)]) for d in range(1, 6)]
+            for i  in range(len(_properties)):
+                _new += ['_'.join([start, scope, style, _notations[i], str(d)]) for d in range(1, 6)]
         return _new
 
     return helper('f', 'all') + helper('f', 'CN') + helper('f', 'NN')
 
-def RAC_with_NAO_CN_NN(mol, depth=(1,5)) -> np.ndarray:
+def RAC_with_NAO_CN_NN(mol, depth=(1,5), option='Singlet') -> np.ndarray:
 
     _properties = ['Weighted energy', 'Natural charge', 
     'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
     'Valence py occupancy', 'Valence py energy', 'Valence pz occupancy', 'Valence pz energy']
+    _properties = [_property+' '+option for _property in _properties]
+    if option == 'Triplet':
+        _properties = _properties + ['Natural Spin Density']
 
     f_all_MB = RAC_f_all(mol, _properties=_properties, depth=depth, operation='multiply', style='Moreau-Broto')
     f_all_M = RAC_f_all(mol, _properties=_properties, depth=depth, style='Moran')
