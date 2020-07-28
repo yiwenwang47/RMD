@@ -13,7 +13,7 @@ Inspired by https://doi.org/10.1021/acs.jpca.7b08750. Currently only working on 
 Details in calculation are slightly different from their version. All algorithms are rewritten. No important dependency.
 
 ### Moran styled and Geary styled autocorrelation
-Working on including other common autocorrelation descriptors. Might draw ideas from conventional 2D autocorrelation descriptors.
+Ideas drawn from conventional 2D autocorrelation descriptors.
 
 ## Radial distribution functions
 Work in progress.
