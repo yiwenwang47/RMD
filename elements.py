@@ -177,7 +177,7 @@ property_notation = {
     'Valence py energy': 'E_py',
     'Valence pz occupancy': 'Occ_pz',
     'Valence pz energy': 'E_pz',
-    'Natural Spin Density': 'd'
+    'Natural Spin Density': 'sd'
 }
 
 # The following variables are still related to property calculation, although not necessarily directly relate to any element.
