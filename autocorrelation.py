@@ -48,7 +48,7 @@ def property_correlation(mol, _property: str, ind1: int, ind2: int, operation: s
     return operations[operation](p1, p2)
 
 # Moreau-Broto autocorrelation calculated by matrix multiplication.
-def Moreau_Broto_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, operation: str, with_origin=False) -> np.float:
+def Moreau_Broto_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, operation: str, with_origin=False, cross_scope=False) -> np.float:
 
     """
     Although the original Moreau-Broto autocorrelation only considers product aurtocorrelation, I try to accommodate all four operations.
@@ -58,11 +58,13 @@ def Moreau_Broto_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.
 
     if not with_origin:
         assert len(binary_matrix.shape) == 2
+        if cross_scope:
+            assert binary_matrix.shape[0] == len(array_1) and binary_matrix.shape[1] == len(array_2)
         if operation == 'divide': 
             array_2 = 1/array_2
             operation = 'multiply'
         if operation == 'add' or operation == 'subtract':
-            array_1 = binary_matrix.sum(axis=0) * array_1
+            array_1 = binary_matrix.sum(axis=1) * array_1
         array_2 = binary_matrix.dot(array_2)
         return operations[operation](array_1, array_2).sum()
     else:
@@ -70,12 +72,13 @@ def Moreau_Broto_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.
         return (operations[operation](array_1, array_2) * binary_matrix).sum()
 
 # Autocorrelation inspired by Moran's I
-def Moran_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, denominator: np.float, mean: np.float, with_origin=False) -> np.float:
+def Moran_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, denominator: np.float, mean: np.float, with_origin=False, cross_scope=False) -> np.float:
 
     """
     The denominator and mean are left as parameters in order to allow revised versions. 
     """
 
+    assert not (with_origin and cross_scope)
     denominator = binary_matrix.sum() * denominator
     if denominator == 0:
         return np.float(0)
@@ -84,17 +87,21 @@ def Moran_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
         assert len(binary_matrix.shape) == 1
         return (binary_matrix * array_2).dot(array_1) / denominator 
     else:
-        assert len(binary_matrix.shape) == 2
-        return binary_matrix.dot(array_2).dot(array_1) / denominator
+        if cross_scope:
+            assert binary_matrix.shape[0] == len(array_1) and binary_matrix.shape[1] == len(array_2)
+        else:
+            assert len(binary_matrix.shape) == 2
+        return array_1.dot(binary_matrix).dot(array_2) / denominator 
 
 # Autocorrelation inspired by Geary's C
-def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, denominator: np.float, with_origin=False) -> np.float:
+def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, denominator: np.float, with_origin=False, cross_scope=False) -> np.float:
 
     """
     The denominator is left as a parameter in order to allow revised versions.
     If with_origin=False, array_2 is assumed to be identical to array_1.
     """
 
+    assert not (with_origin and cross_scope)
     denominator = 2 * binary_matrix.sum() * denominator
     if denominator == 0:
         return np.float(0)
@@ -103,9 +110,12 @@ def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
         array = array_1 - array_2
         result = array * binary_matrix * array
     else:
-        assert len(binary_matrix.shape) == 2
-        assert ((array_1-array_2)**2).sum() < 1e-5
-        s = binary_matrix * array_1
+        if cross_scope:
+            assert binary_matrix.shape[0] == len(array_1) and binary_matrix.shape[1] == len(array_2)
+        else:
+            assert len(binary_matrix.shape) == 2
+            assert ((array_1-array_2)**2).sum() < 1e-5
+        s = binary_matrix * array_2
         # number of x_j * x_i ^ 2 - 2 x_i * sum(x_j) + sum(x_j ^ 2)
         result = binary_matrix.sum(axis=1) * array_1 * array_1 - 2 * array_1 * s.sum(axis=1) + (s * s).sum(axis=1)
     return result.sum() / denominator
@@ -165,8 +175,8 @@ def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> n
     mol.populate_property(_property)
     _length = depth[1] - depth[0] + 1
     feature = np.zeros(_length).astype(np.float)
-    array = mol.properties[_property]
-    matrix = mol.distances
+    array = mol.properties[_property].copy()
+    matrix = mol.distances.copy()
     if scope:
         scope = list(scope)
         array = array[scope]
@@ -188,6 +198,46 @@ def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> n
         else:
             feature[i] = Geary_ac(array, targets, array, denominator=denominator, with_origin=False)
     
+    return feature
+
+def AC_cross_scope(mol, style: str, _property: str, scope_1: set, scope_2: set, depth: tuple) -> np.ndarray:
+
+    """
+    Style: 'Moran' or 'Geary'
+    Cross-scope autocorrelation descriptor. For any valid atom pair, the first atom belongs to scope_1, and the second belongs to scope_2.
+    The parameters scope_1 and scope_2 are forced to be sets just to prevent possible replicates.
+    """
+
+    assert depth[0] != 0 # because it's trivial
+    assert len(scope_1) > 0 and len(scope_2) > 0
+    
+    mol.populate_property(_property)
+    _length = depth[1] - depth[0] + 1
+    feature = np.zeros(_length).astype(np.float)
+    array = mol.properties[_property].copy()
+    matrix = mol.distances.copy()
+    scope_1, scope_2, scope = list(scope_1), list(scope_2), list(scope_1|scope_2)
+
+    array_copy = array[scope]
+    denominator = (array_copy.std())**2
+    if denominator == 0:
+        return feature
+    if style == 'Geary':
+        denominator = denominator * len(array_copy) / (len(array_copy)-1)
+    if style == 'Moran':
+        mean = array_copy.mean()
+    
+    array_1, array_2 = array[scope_1], array[scope_2]
+    matrix = matrix[scope_1][:, scope_2]
+
+    for i in range(_length):
+        d = depth[0] + i
+        targets = delta(matrix, d)
+        if style == 'Moran':
+            feature[i] = Moran_ac(array_1, targets, array_2, denominator=denominator, mean=mean, cross_scope=True)
+        else:
+            feature[i] = Geary_ac(array_1, targets, array_2, denominator=denominator, cross_scope=True)
+
     return feature
 
 # This section includes revised Moreau-Broto autocorrelation functions.
@@ -260,13 +310,42 @@ def MB_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, 
         d = depth[0] + i
         targets = delta(matrix, d)
         n_d = targets.sum()
-        feature[i] = Moreau_Broto_ac(array, targets, array, operation)
-        if average and n_d > 0:
-            feature[i] = np.divide(feature[i], n_d)
+        if n_d > 0:
+            feature[i] = Moreau_Broto_ac(array, targets, array, operation, with_origin=False)
+            if average:
+                feature[i] = np.divide(feature[i], n_d)
 
     if operation == 'subtract' or operation == 'divide':
         return feature[1:] #because zero depth is trivial
 
+    return feature
+
+def MB_cross_scope(mol, _property: str, scope_1: set, scope_2: set, operation: str, depth: tuple, average: bool) -> np.ndarray:
+    
+    """
+    Cross-scope autocorrelation descriptor. For any valid atom pair, the first atom belongs to scope_1, and the second belongs to scope_2.
+    """
+    
+    assert depth[0] != 0 #because it's ill-defined
+
+    mol.populate_property(_property)
+    _length = depth[1] - depth[0] + 1
+    feature = np.zeros(_length).astype(np.float)
+    array = mol.properties[_property].copy()
+    matrix = mol.distances.copy()
+    scope_1, scope_2 = list(scope_1), list(scope_2)
+    array_1, array_2 = array[scope_1], array[scope_2]
+    matrix = matrix[scope_1][:, scope_2]
+
+    for i in range(_length):
+        d = depth[0] + i
+        targets = delta(matrix, d)
+        n_d = targets.sum()
+        if n_d > 0:
+            feature[i] = Moreau_Broto_ac(array_1, targets, array_2, operation, cross_scope=True)
+            if average:
+                feature[i] = np.divide(feature[i], n_d)
+    
     return feature
 
 # Set to False for now. Needs more experiments.
@@ -313,6 +392,24 @@ def multiple_RACs_all_atoms(mol, _properties: list, scope: set, depth: tuple, op
             _new = MB_all_atoms(mol, _property=_property, scope=scope, operation=operation, depth=depth, average=average)
         else:
             _new = AC_all_atoms(mol, style=style, _property=_property, scope=scope, depth=depth)
+        if i == 0:
+            feature = _new
+        else:
+            feature = np.concatenate((feature, _new))
+    return feature
+
+def multiple_RACs_cross_scope(mol, _properties: list, scope_1: set, scope_2: set, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
+    if style not in ['Moreau-Broto', 'Moran', 'Geary']:
+        raise StyleError(style)
+    for i, _property in enumerate(_properties):
+        if style == 'Moreau-Broto':
+            if _property in _average:
+                average = _average[_property]
+            else:
+                average = False
+            _new = MB_cross_scope(mol, _property=_property, scope_1=scope_1, scope_2=scope_2, operation=operation, depth=depth, average=average)
+        else:
+            _new = AC_cross_scope(mol, style=style, _property=_property, scope_1=scope_1, scope_2=scope_2, depth=depth)
         if i == 0:
             feature = _new
         else:
