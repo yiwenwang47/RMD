@@ -494,6 +494,15 @@ def RAC_f_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operati
     
     return np.divide(feature, len(ligands))
 
+def RAC_ligand_ligand(mol, ligand1_index: int, ligand2_index: int, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
+
+    """
+    Cross-scope RAC descriptors. Namely, in any atom pair that counts, the first atom belongs to ligand1, and the second atom belongs to ligand2.
+    """
+
+    scope_1, scope_2 = set(mol.ligand_ind[ligand1_index]), set(mol.ligand_ind[ligand2_index])
+    return multiple_RACs_cross_scope(mol=mol, _properties=_properties, scope_1=scope_1, scope_2=scope_2, depth=depth, operation=operation, style=style)
+
 # The following section is only about RAC features for CN/NN ligands. 
 # full_RAC_CN_NN follows the RAC-155 list. In our case, it's actually RAC-156.
 # updated_RAC_CN_NN includes a few definition changes and more property options. Experimental.
@@ -681,7 +690,7 @@ def NAO_NPA_names(option='Singlet') -> list:
         _new = []
         for style in styles:
             for i  in range(len(_properties)):
-                _new += ['_'.join([start, scope, style, _notations[i], str(d)]) for d in range(1, 6)]
+                _new += ['_'.join([start, scope, style, _notations[i], str(d)]) for d in range(1, 11)]
         return _new
 
     return helper('f', 'all') + helper('f', 'CN') + helper('f', 'NN')
@@ -708,5 +717,32 @@ def RAC_with_NAO_CN_NN(mol, depth=(1,5), option='Singlet') -> np.ndarray:
     f_NN_G = RAC_f_ligand(mol, 'NN', _properties=_properties, depth=depth, style='Geary')
     
     full_feature = np.concatenate((f_all_MB, f_all_M, f_all_G, f_CN_MB, f_CN_M, f_CN_G, f_NN_MB, f_NN_M, f_NN_G))
+
+    return full_feature
+
+def RAC_cross_scope_with_NAO_CN_NN(mol, depth=(1,10), option='Singlet') -> np.ndarray:
+
+    _properties = ['Weighted energy', 'Natural charge', 
+    'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
+    'Valence py occupancy', 'Valence py energy', 'Valence pz occupancy', 'Valence pz energy']
+    _properties = [_property+' '+option for _property in _properties]
+    if option == 'Triplet':
+        _properties = _properties + ['Natural Spin Density']
+
+    CN1, CN2, NN = mol.CN1, mol.CN2, mol.get_specific_ligand('NN')[0]
+
+    CN1_NN_MB = RAC_ligand_ligand(mol, CN1, NN, _properties=_properties, depth=depth, operation='multiply', style='Moreau-Broto')
+    CN1_NN_M = RAC_ligand_ligand(mol, CN1, NN, _properties=_properties, depth=depth, style='Moran')
+    CN1_NN_G = RAC_ligand_ligand(mol, CN1, NN, _properties=_properties, depth=depth, style='Geary')
+
+    CN2_NN_MB = RAC_ligand_ligand(mol, CN2, NN, _properties=_properties, depth=depth, operation='multiply', style='Moreau-Broto')
+    CN2_NN_M = RAC_ligand_ligand(mol, CN2, NN, _properties=_properties, depth=depth, style='Moran')
+    CN2_NN_G = RAC_ligand_ligand(mol, CN2, NN, _properties=_properties, depth=depth, style='Geary')
+
+    CN1_CN2_MB = RAC_ligand_ligand(mol, CN1, CN2, _properties=_properties, depth=depth, operation='multiply', style='Moreau-Broto')
+    CN1_CN2_M = RAC_ligand_ligand(mol, CN1, CN2, _properties=_properties, depth=depth, style='Moran')
+    CN1_CN2_G = RAC_ligand_ligand(mol, CN1, CN2, _properties=_properties, depth=depth, style='Geary')
+
+    full_feature = np.concatenate((CN1_NN_MB, CN1_NN_M, CN1_NN_G, CN2_NN_MB, CN2_NN_M, CN2_NN_G, CN1_CN2_MB, CN1_CN2_M, CN1_CN2_G))
 
     return full_feature
