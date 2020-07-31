@@ -28,4 +28,92 @@ def radial_distribution_function(array_1: np.ndarray, d_matrix: np.ndarray, arra
             assert ((array_1-array_2)**2).sum() < 1e-5
         return array_1.dot(matrix).dot(array_2) * f
 
-# def RDF
+def RDFs_from_atom(mol, _properties: list, origin: int, scope: set, beta: float, distance_range: tuple, step_size: float) -> np.ndarray:
+    
+    """
+    Multiple RDFs weighted by a list of properties from an origin atom.
+    The parameter scope is forced to be a set just to prevent possible replicates. Pass scope = set() to get a full-scope feature.
+    """
+
+    _length = int((distance_range[1] - distance_range[0])/step_size + 1)
+    distances = np.linspace(distance_range[0], distance_range[1], _length)
+    d_from_origin = mol.matrix[origin].copy()
+    if scope:
+        scope = list(scope)
+        d_from_origin = d_from_origin[scope]
+
+    for i, _property in enumerate(_properties):
+        mol.populate_property(_property)
+        _new = np.zeros(_length).astype(np.float)
+        array_2 = mol.properties[_property].copy()
+        if scope:
+            array_2 = array_2[scope]
+        array_1 = mol.properties[_property][origin] * np.ones(len(d_from_origin))
+        for j, R in enumerate(distances):
+            _new[j] = radial_distribution_function(array_1, d_from_origin, array_2, beta, R, with_origin=True)
+        if i==0:
+            feature = _new
+        else:
+            feature = np.concatenate((feature, _new))
+
+    return feature
+
+def RDFs_all_atoms(mol, _properties: list, scope: set, beta: float, distance_range: tuple, step_size: float) -> np.ndarray:
+
+    """
+    Multiple RDFs weighted by a list of properties between all atoms in the defined scope.
+    The parameter scope is forced to be a set just to prevent possible replicates. Pass scope = set() to get a full-scope feature.
+    """
+
+    
+    _length = int((distance_range[1] - distance_range[0])/step_size + 1)
+    distances = np.linspace(distance_range[0], distance_range[1], _length)
+    matrix = mol.matrix.copy()
+    if scope:
+        scope = list(scope)
+        matrix = matrix[scope][:, scope]
+
+    for i, _property in enumerate(_properties):
+        mol.populate_property(_property)
+        _new = np.zeros(_length).astype(np.float)
+        array = mol.properties[_property].copy()
+        if scope:
+            array = array[scope]
+        for j, R in enumerate(distances):
+            _new[j] = radial_distribution_function(array, matrix, array, beta, R)
+        if i==0:
+            feature = _new
+        else:
+            feature = np.concatenate((feature, _new))
+
+    return feature
+
+def RDFs_cross_scope(mol, _properties: list, scope_1: set, scope_2:set, beta: float, distance_range: tuple, step_size: float) -> np.ndarray:
+
+    """
+    Multiple cross-scope RDFs weighted by a list of properties. 
+    For any valid atom pair, the first atom belongs to scope_1, and the second belongs to scope_2.
+    """
+
+    assert len(scope_1) > 0 and len(scope_2) > 0
+    scope_1, scope_2 = list(scope_1), list(scope_2)
+    _length = int((distance_range[1] - distance_range[0])/step_size + 1)
+    distances = np.linspace(distance_range[0], distance_range[1], _length)
+    matrix = mol.matrix.copy()[scope_1][:, scope_2]
+    
+    for i, _property in enumerate(_properties):
+        mol.populate_property(_property)
+        _new = np.zeros(_length).astype(np.float)
+        array = mol.properties[_property].copy()
+        array_1, array_2 = array[scope_1], array[scope_2]
+        for j, R in enumerate(distances):
+            _new[j] = radial_distribution_function(array_1, matrix, array_2, beta, R, cross_scope=True)
+        if i==0:
+            feature = _new
+        else:
+            feature = np.concatenate((feature, _new))
+
+    return feature
+
+def RDF_f_all(mol, _properties: list, beta: float, distance_range: tuple, step_size: float) -> np.ndarray:
+    return RDFs_all_atoms(mol, _properties=_properties, scope=set(), beta=beta, distance_range=distance_range, step_size=step_size)
