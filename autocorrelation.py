@@ -79,7 +79,7 @@ def Moran_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
     """
 
     assert not (with_origin and cross_scope)
-    denominator = binary_matrix.sum() * denominator
+    denominator = np.int64(binary_matrix>0).sum() * denominator
     if denominator == 0:
         return np.float(0)
     array_1, array_2 = array_1 - mean, array_2 - mean
@@ -102,7 +102,8 @@ def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
     """
 
     assert not (with_origin and cross_scope)
-    denominator = 2 * binary_matrix.sum() * denominator
+    binary_matrix_copy = np.int64(binary_matrix>0)
+    denominator = 2 * binary_matrix_copy.sum() * denominator
     if denominator == 0:
         return np.float(0)
     if with_origin:
@@ -116,15 +117,16 @@ def Geary_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray
             assert len(binary_matrix.shape) == 2
             assert ((array_1-array_2)**2).sum() < 1e-5
         s = binary_matrix * array_2
+        s_copy = binary_matrix_copy * array_2
         # number of x_j * x_i ^ 2 - 2 x_i * sum(x_j) + sum(x_j ^ 2)
-        result = binary_matrix.sum(axis=1) * array_1 * array_1 - 2 * array_1 * s.sum(axis=1) + (s * s).sum(axis=1)
+        result = binary_matrix.sum(axis=1) * array_1 * array_1 - 2 * array_1 * s.sum(axis=1) + (s * s_copy).sum(axis=1)
     return result.sum() / denominator
 
 # This section includes the Moran-styled and Geary-styled autocorrelation functions.
 # Although this might seem repetitive, they need to be written separately because unlike Moreau-Broto AC,
 # they couldn't be done by any operation other than multiplication.
 
-def AC_from_atom(mol, style: str, _property: str, origin: int, scope: set, depth: tuple) -> np.ndarray:
+def AC_from_atom(mol, style: str, _property: str, origin: int, scope: set, depth: tuple, three_d=False) -> np.ndarray:
 
     """
     Style: 'Moran' or 'Geary'
@@ -139,9 +141,13 @@ def AC_from_atom(mol, style: str, _property: str, origin: int, scope: set, depth
     origin_property = mol.properties[_property][origin]
     d_from_origin = mol.distances[origin].copy()
     array_2 = mol.properties[_property].copy()
+    if three_d:
+        d_from_origin_3d = mol.matrix[origin].copy()
     if scope:
         scope = list(scope)
         d_from_origin = d_from_origin[scope]
+        if three_d:
+            d_from_origin_3d = d_from_origin_3d[scope]
         array_2 = array_2[scope]
     array_1 = origin_property * np.ones(len(d_from_origin))
 
@@ -156,6 +162,8 @@ def AC_from_atom(mol, style: str, _property: str, origin: int, scope: set, depth
     for i in range(_length):
         d = depth[0] + i
         targets = delta(d_from_origin, d)
+        if three_d:
+            targets = targets * d_from_origin_3d
         if style == 'Moran':
             feature[i] = Moran_ac(array_1, targets, array_2, denominator=denominator, mean=mean, with_origin=True)
         else:
@@ -163,7 +171,7 @@ def AC_from_atom(mol, style: str, _property: str, origin: int, scope: set, depth
     
     return feature
 
-def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> np.ndarray:
+def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple, three_d=False) -> np.ndarray:
 
     """
     Style: 'Moran' or 'Geary'
@@ -176,11 +184,15 @@ def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> n
     _length = depth[1] - depth[0] + 1
     feature = np.zeros(_length).astype(np.float)
     array = mol.properties[_property].copy()
-    matrix = mol.distances.copy()
+    distances = mol.distances.copy()
+    if three_d:
+        matrix = mol.matrix.copy()
     if scope:
         scope = list(scope)
         array = array[scope]
-        matrix = matrix[scope][:, scope]
+        distances = distances[scope][:, scope]
+        if three_d:
+            matrix = matrix[scope][:, scope]
     
     denominator = (array.std())**2
     if denominator == 0:
@@ -192,7 +204,9 @@ def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> n
 
     for i in range(_length):
         d = depth[0] + i
-        targets = delta(matrix, d)
+        targets = delta(distances, d)
+        if three_d:
+            targets = targets * matrix
         if style == 'Moran':
             feature[i] = Moran_ac(array, targets, array, denominator=denominator, mean=mean, with_origin=False)
         else:
@@ -200,11 +214,11 @@ def AC_all_atoms(mol, style: str, _property: str, scope: set, depth: tuple) -> n
     
     return feature
 
-def AC_cross_scope(mol, style: str, _property: str, scope_1: set, scope_2: set, depth: tuple) -> np.ndarray:
+def AC_cross_scope(mol, style: str, _property: str, scope_1: set, scope_2: set, depth: tuple, three_d=False) -> np.ndarray:
 
     """
     Style: 'Moran' or 'Geary'
-    Cross-scope autocorrelation descriptor. For any valid atom pair, the first atom belongs to scope_1, and the second belongs to scope_2.
+    Cross-scope autocorrelation descriptors. For any valid atom pair, the first atom belongs to scope_1, and the second belongs to scope_2.
     The parameters scope_1 and scope_2 are forced to be sets just to prevent possible replicates.
     """
 
@@ -215,7 +229,9 @@ def AC_cross_scope(mol, style: str, _property: str, scope_1: set, scope_2: set, 
     _length = depth[1] - depth[0] + 1
     feature = np.zeros(_length).astype(np.float)
     array = mol.properties[_property].copy()
-    matrix = mol.distances.copy()
+    distances = mol.distances.copy()
+    if three_d:
+        matrix = mol.matrix.copy()
     scope_1, scope_2, scope = list(scope_1), list(scope_2), list(scope_1|scope_2)
 
     array_copy = array[scope]
@@ -228,11 +244,15 @@ def AC_cross_scope(mol, style: str, _property: str, scope_1: set, scope_2: set, 
         mean = array_copy.mean()
     
     array_1, array_2 = array[scope_1], array[scope_2]
-    matrix = matrix[scope_1][:, scope_2]
+    distances = distances[scope_1][:, scope_2]
+    if three_d:
+        matrix = matrix[scope_1][:, scope_2]
 
     for i in range(_length):
         d = depth[0] + i
-        targets = delta(matrix, d)
+        targets = delta(distances, d)
+        if three_d:
+            targets = targets * matrix
         if style == 'Moran':
             feature[i] = Moran_ac(array_1, targets, array_2, denominator=denominator, mean=mean, cross_scope=True)
         else:
@@ -242,7 +262,7 @@ def AC_cross_scope(mol, style: str, _property: str, scope_1: set, scope_2: set, 
 
 # This section includes revised Moreau-Broto autocorrelation functions.
 
-def MB_from_atom(mol, _property: str, origin: int, scope: set, operation: str, depth: tuple, average: bool) -> np.ndarray:
+def MB_from_atom(mol, _property: str, origin: int, scope: set, operation: str, depth: tuple, average: bool, three_d=False) -> np.ndarray:
     
     """
     Limiting the first atom in any atom pair to the given origin atom. 
@@ -254,10 +274,14 @@ def MB_from_atom(mol, _property: str, origin: int, scope: set, operation: str, d
     _length = depth[1] - depth[0] + 1
     feature = np.zeros(_length).astype(np.float)
     d_from_origin = mol.distances[origin].copy()
+    if three_d:
+        d_from_origin_3d = mol.matrix[origin].copy()
     array_2 = mol.properties[_property].copy()
     if scope:
         scope = list(scope)
         d_from_origin = d_from_origin[scope]
+        if three_d:
+            d_from_origin_3d = d_from_origin_3d[scope]
         array_2 = array_2[scope]
     array_1 = mol.properties[_property][origin] * np.ones(len(d_from_origin))
 
@@ -271,6 +295,8 @@ def MB_from_atom(mol, _property: str, origin: int, scope: set, operation: str, d
         d = depth[0] + i
         targets = delta(d_from_origin, d)
         n_d = targets.sum()
+        if three_d:
+            targets = targets * d_from_origin_3d
         feature[i] = Moreau_Broto_ac(array_1, targets, array_2, operation, with_origin=True)
         if average and n_d > 0:
             feature[i] = np.divide(feature[i], n_d)
@@ -280,7 +306,7 @@ def MB_from_atom(mol, _property: str, origin: int, scope: set, operation: str, d
 
     return feature
 
-def MB_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, average: bool) -> np.ndarray:
+def MB_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, average: bool, three_d=False) -> np.ndarray:
      
     """
     Does not only start from any specific center.
@@ -291,13 +317,15 @@ def MB_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, 
     _length = depth[1] - depth[0] + 1
     feature = np.zeros(_length).astype(np.float)
     array = mol.properties[_property].copy()
-    matrix = mol.distances.copy()
+    distances = mol.distances.copy()
+    if three_d:
+        matrix = mol.matrix.copy()
     n_0 = mol.natoms
     if scope:
         scope = list(scope)
-        array = array[scope]
-        n_0 = len(scope)
-        matrix = matrix[scope][:, scope]
+        array, n_0, distances = array[scope], len(scope), distances[scope][:, scope]
+        if three_d:
+            matrix = matrix[scope][:, scope]
     if depth[0] == 0:
         feature[0] = Moreau_Broto_ac(array, np.ones(n_0), array, operation, with_origin=True)
         if average and n_0 > 0:
@@ -308,8 +336,10 @@ def MB_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, 
 
     for i in range(a, b):
         d = depth[0] + i
-        targets = delta(matrix, d)
+        targets = delta(distances, d)
         n_d = targets.sum()
+        if three_d:
+            targets = targets * matrix
         if n_d > 0:
             feature[i] = Moreau_Broto_ac(array, targets, array, operation, with_origin=False)
             if average:
@@ -320,10 +350,10 @@ def MB_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, 
 
     return feature
 
-def MB_cross_scope(mol, _property: str, scope_1: set, scope_2: set, operation: str, depth: tuple, average: bool) -> np.ndarray:
+def MB_cross_scope(mol, _property: str, scope_1: set, scope_2: set, operation: str, depth: tuple, average: bool, three_d=False) -> np.ndarray:
     
     """
-    Cross-scope autocorrelation descriptor. For any valid atom pair, the first atom belongs to scope_1, and the second belongs to scope_2.
+    Cross-scope autocorrelation descriptors. For any valid atom pair, the first atom belongs to scope_1, and the second belongs to scope_2.
     """
     
     assert depth[0] != 0 #because it's ill-defined
@@ -332,15 +362,18 @@ def MB_cross_scope(mol, _property: str, scope_1: set, scope_2: set, operation: s
     _length = depth[1] - depth[0] + 1
     feature = np.zeros(_length).astype(np.float)
     array = mol.properties[_property].copy()
-    matrix = mol.distances.copy()
     scope_1, scope_2 = list(scope_1), list(scope_2)
     array_1, array_2 = array[scope_1], array[scope_2]
-    matrix = matrix[scope_1][:, scope_2]
+    distances = mol.distances.copy()[scope_1][:, scope_2]
+    if three_d:
+        matrix = mol.matrix.copy()[scope_1][:, scope_2]
 
     for i in range(_length):
         d = depth[0] + i
-        targets = delta(matrix, d)
+        targets = delta(distances, d)
         n_d = targets.sum()
+        if three_d:
+            targets = targets * matrix
         if n_d > 0:
             feature[i] = Moreau_Broto_ac(array_1, targets, array_2, operation, cross_scope=True)
             if average:
@@ -362,7 +395,7 @@ _average = {
 # This section includes higher level RAC functions.
 # From this point on, all these RAC functions will support all three styles.
 
-def multiple_RACs_from_atom(mol, _properties: list, origin: int, scope: set, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
+def multiple_RACs_from_atom(mol, _properties: list, origin: int, scope: set, depth: tuple, operation='multiply', style='Moreau-Broto', three_d=False) -> np.ndarray:
     if style not in ['Moreau-Broto', 'Moran', 'Geary']:
         raise StyleError(style)
     for i, _property in enumerate(_properties):
@@ -370,17 +403,17 @@ def multiple_RACs_from_atom(mol, _properties: list, origin: int, scope: set, dep
             if _property in _average:
                 average = _average[_property]
             else:
-                average = False
-            _new = MB_from_atom(mol, _property=_property, origin=origin, scope=scope, operation=operation, depth=depth, average=average)
+                average = True
+            _new = MB_from_atom(mol, _property=_property, origin=origin, scope=scope, operation=operation, depth=depth, average=average, three_d=three_d)
         else:
-            _new = AC_from_atom(mol, style=style, _property=_property, origin=origin, scope=scope, depth=depth)
+            _new = AC_from_atom(mol, style=style, _property=_property, origin=origin, scope=scope, depth=depth, three_d=three_d)
         if i == 0:
             feature = _new
         else:
             feature = np.concatenate((feature, _new))
     return feature
 
-def multiple_RACs_all_atoms(mol, _properties: list, scope: set, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
+def multiple_RACs_all_atoms(mol, _properties: list, scope: set, depth: tuple, operation='multiply', style='Moreau-Broto', three_d=False) -> np.ndarray:
     if style not in ['Moreau-Broto', 'Moran', 'Geary']:
         raise StyleError(style)
     for i, _property in enumerate(_properties):
@@ -388,17 +421,17 @@ def multiple_RACs_all_atoms(mol, _properties: list, scope: set, depth: tuple, op
             if _property in _average:
                 average = _average[_property]
             else:
-                average = False
-            _new = MB_all_atoms(mol, _property=_property, scope=scope, operation=operation, depth=depth, average=average)
+                average = True
+            _new = MB_all_atoms(mol, _property=_property, scope=scope, operation=operation, depth=depth, average=average, three_d=three_d)
         else:
-            _new = AC_all_atoms(mol, style=style, _property=_property, scope=scope, depth=depth)
+            _new = AC_all_atoms(mol, style=style, _property=_property, scope=scope, depth=depth, three_d=three_d)
         if i == 0:
             feature = _new
         else:
             feature = np.concatenate((feature, _new))
     return feature
 
-def multiple_RACs_cross_scope(mol, _properties: list, scope_1: set, scope_2: set, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
+def multiple_RACs_cross_scope(mol, _properties: list, scope_1: set, scope_2: set, depth: tuple, operation='multiply', style='Moreau-Broto', three_d=False) -> np.ndarray:
     if style not in ['Moreau-Broto', 'Moran', 'Geary']:
         raise StyleError(style)
     for i, _property in enumerate(_properties):
@@ -406,20 +439,20 @@ def multiple_RACs_cross_scope(mol, _properties: list, scope_1: set, scope_2: set
             if _property in _average:
                 average = _average[_property]
             else:
-                average = False
-            _new = MB_cross_scope(mol, _property=_property, scope_1=scope_1, scope_2=scope_2, operation=operation, depth=depth, average=average)
+                average = True
+            _new = MB_cross_scope(mol, _property=_property, scope_1=scope_1, scope_2=scope_2, operation=operation, depth=depth, average=average, three_d=three_d)
         else:
-            _new = AC_cross_scope(mol, style=style, _property=_property, scope_1=scope_1, scope_2=scope_2, depth=depth)
+            _new = AC_cross_scope(mol, style=style, _property=_property, scope_1=scope_1, scope_2=scope_2, depth=depth, three_d=three_d)
         if i == 0:
             feature = _new
         else:
             feature = np.concatenate((feature, _new))
     return feature
 
-def RAC_f_all(mol, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
-    return multiple_RACs_all_atoms(mol=mol, _properties=_properties, scope=set(), depth=depth, operation=operation, style=style)
+def RAC_f_all(mol, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', three_d=False) -> np.ndarray:
+    return multiple_RACs_all_atoms(mol=mol, _properties=_properties, scope=set(), depth=depth, operation=operation, style=style, three_d=three_d)
 
-def RAC_mc_all(mol, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', average_mc=True) -> np.ndarray:
+def RAC_mc_all(mol, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', average_mc=True, three_d=False) -> np.ndarray:
 
     """
     The feature vector is averaged over all metal centers by default.
@@ -429,13 +462,13 @@ def RAC_mc_all(mol, _properties: list, depth: tuple, operation='multiply', style
     assert n_mc > 0
     feature = init_feature(len(_properties), operation, depth[1]-depth[0])
     for mc in mol.mcs:
-        feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=set(), depth=depth, operation=operation, style=style)
+        feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=set(), depth=depth, operation=operation, style=style, three_d=three_d)
     
     if not average_mc:
         return feature
     return np.divide(feature, n_mc)
 
-def RAC_mc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', average_mc=True) -> np.ndarray:
+def RAC_mc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', average_mc=True, three_d=False) -> np.ndarray:
 
     """
     The feature vector is averaged over all metal centers and all ligands by default.
@@ -448,13 +481,13 @@ def RAC_mc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operat
     for ligand in ligands:
         for mc in mol.mcs:
             scope = set(mol.ligand_ind[ligand]).update([mc])
-            feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, depth=depth, operation=operation, style=style)
+            feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, depth=depth, operation=operation, style=style, three_d=three_d)
     
     if average_mc:
         feature = np.divide(feature, n_mc) 
     return np.divide(feature, len(ligands))
 
-def RAC_lc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', average_lc=True) -> np.ndarray:
+def RAC_lc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', average_lc=True, three_d=False) -> np.ndarray:
 
     """
     The ligand type is not specified here in order to accommodate more possibilities in the future.
@@ -470,7 +503,7 @@ def RAC_lc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operat
         lcs = mol.lcs[ligand]
         scope = set(mol.ligand_ind[ligand])
         for lc in lcs:
-            ligand_feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=lc, scope=scope, depth=depth, operation=operation, style=style)
+            ligand_feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=lc, scope=scope, depth=depth, operation=operation, style=style, three_d=three_d)
         ligand_feature = np.divide(ligand_feature, len(lcs))
         feature += ligand_feature
 
@@ -478,7 +511,7 @@ def RAC_lc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operat
         return feature
     return np.divide(feature, len(ligands))
 
-def RAC_f_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
+def RAC_f_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', three_d=False) -> np.ndarray:
 
     """
     The ligand type is not specified here in order to accommodate more possibilities in the future.
@@ -490,18 +523,18 @@ def RAC_f_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operati
 
     for ligand in ligands:
         scope = set(mol.ligand_ind[ligand])
-        feature += multiple_RACs_all_atoms(mol, _properties=_properties, scope=scope, depth=depth, operation=operation, style=style)
+        feature += multiple_RACs_all_atoms(mol, _properties=_properties, scope=scope, depth=depth, operation=operation, style=style, three_d=three_d)
     
     return np.divide(feature, len(ligands))
 
-def RAC_ligand_ligand(mol, ligand1_index: int, ligand2_index: int, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto') -> np.ndarray:
+def RAC_ligand_ligand(mol, ligand1_index: int, ligand2_index: int, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', three_d=False) -> np.ndarray:
 
     """
     Cross-scope RAC descriptors. Namely, in any atom pair that counts, the first atom belongs to ligand1, and the second atom belongs to ligand2.
     """
 
     scope_1, scope_2 = set(mol.ligand_ind[ligand1_index]), set(mol.ligand_ind[ligand2_index])
-    return multiple_RACs_cross_scope(mol=mol, _properties=_properties, scope_1=scope_1, scope_2=scope_2, depth=depth, operation=operation, style=style)
+    return multiple_RACs_cross_scope(mol=mol, _properties=_properties, scope_1=scope_1, scope_2=scope_2, depth=depth, operation=operation, style=style, three_d=three_d)
 
 # The following section is only about RAC features for CN/NN ligands. 
 # full_RAC_CN_NN follows the RAC-155 list. In our case, it's actually RAC-156.
