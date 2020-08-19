@@ -1,5 +1,5 @@
 import numpy as np
-from .elements import *
+from .elements import elementdict, covalent_radius, ismetal, properties
 from collections import defaultdict
 import copy
 from scipy.spatial import distance_matrix
@@ -137,6 +137,8 @@ class simple_mol(object):
         self.get_coords()
         del self.text
         self.graph = get_graph_full_scope(self)
+        self.lcs = []
+        self.ligand_ind = []
         bfs_ligands(self)
         self.custom_property('topology', self.graph.sum(axis=0))
         self.init_distances()
@@ -235,7 +237,6 @@ def get_graph_full_scope(mol: simple_mol) -> np.ndarray:
     If the indices of the ligand atoms are not available, use this function.
     """
 
-    flatten = lambda l: [item for sublist in l for item in sublist]
     n = mol.natoms
     graph = np.zeros((n, n))
     cutoffs = get_cutoffs(mol.atoms)
@@ -300,6 +301,8 @@ def bfs_distances(mol: simple_mol, origin: int, depth: int):
     for distance in range(1, depth+1):
         new_active = set(mol.get_bonded_atoms_multiple(list(current_active)))
         new_active -= all_active
+        if not new_active:
+            break
         if distance > 1:
             for atom in new_active:
                 mol.distances[origin][atom] = distance
@@ -312,12 +315,8 @@ def bfs_ligands(mol: simple_mol):
     A breadth-first search algorithm to find out which atoms belong to the same ligand.
     """
 
-    mol.lcs = []
-    mol.ligand_ind = []
-
     graph_copy = mol.graph.copy()
     tmp_lcs = set(mol.get_bonded_atoms_multiple(mol.mcs))
-    lcs = []
     
     for i in mol.mcs:
         mol.graph[i] = 0
@@ -392,7 +391,7 @@ def determine_CN_NN(mol: simple_mol):
 
     mol.ligand_types = []
 
-    for i, lc in enumerate(mol.lcs):
+    for _, lc in enumerate(mol.lcs):
         if sorted([mol.atoms[lc[0]], mol.atoms[lc[1]]]) == ['C', 'N']:
             mol.ligand_types.append('CN')
         else:

@@ -1,7 +1,8 @@
 # First, NAO and NPA(omitted in notation for now). Please see below for detailed explanation on property names.
-from ..autocorrelation import *
+import numpy as np
+from ..autocorrelation import RAC_f_all, RAC_f_ligand, RAC_ligand_ligand, property_notation
 
-def NAO_NPA_names(option='Singlet') -> list:
+def NAO_NPA_names(definitions, option='Singlet') -> list:
 
     _properties = ['Weighted energy', 'Natural charge', 
     'Valence s occupancy', 'Valence s energy', 'Valence px occupancy', 'Valence px energy',
@@ -25,8 +26,12 @@ def NAO_NPA_names(option='Singlet') -> list:
                 _new += ['_'.join([start, scope, style, _notations[i], str(d)]) for d in range(1, 11)]
         return _new
 
-    return helper('f', 'all') + helper('f', 'CN') + helper('f', 'NN')
+    names = []
+    for definition in definitions:
+        names += helper(definition[0], definition[1])
 
+    return names
+    
 def RAC_with_NAO_CN_NN(mol, depth=(1,5), option='Singlet', three_d=False) -> np.ndarray:
 
     _properties = ['Weighted energy', 'Natural charge', 

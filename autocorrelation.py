@@ -2,7 +2,7 @@
 # For the sake of simplicity, type hints simple_mol are omitted. 
 # Any variable named mol should be a simple_mol object, and have the following attributes: graph and distances.
 
-from .elements import *
+from .elements import property_notation, operation_name, operations
 from .utils import simple_graph, create_feature_graph
 import numpy as np
 
@@ -480,7 +480,8 @@ def RAC_mc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operat
     feature = init_feature(len(_properties), operation, depth[1]-depth[0])
     for ligand in ligands:
         for mc in mol.mcs:
-            scope = set(mol.ligand_ind[ligand]).update([mc])
+            scope = set(mol.ligand_ind[ligand])
+            scope.update([mc])
             feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, depth=depth, operation=operation, style=style, three_d=three_d)
     
     if average_mc:

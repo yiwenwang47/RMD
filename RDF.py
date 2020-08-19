@@ -1,5 +1,5 @@
 import numpy as np
-from .elements import *
+# from .elements import *
 
 def radial_distribution_function(array_1: np.ndarray, d_matrix: np.ndarray, array_2: np.ndarray, \
     beta: float, R: float, with_origin=False, cross_scope=False) -> np.float:
@@ -117,3 +117,44 @@ def RDFs_cross_scope(mol, _properties: list, scope_1: set, scope_2:set, beta: fl
 
 def RDF_f_all(mol, _properties: list, beta: float, distance_range: tuple, step_size: float) -> np.ndarray:
     return RDFs_all_atoms(mol, _properties=_properties, scope=set(), beta=beta, distance_range=distance_range, step_size=step_size)
+
+def RDF_mc_all(mol, _properties: list, beta: float, distance_range: tuple, step_size: float, average_mc=True) -> np.ndarray:
+
+    """
+    The feature vector is averaged over all metal centers by default.
+    """
+
+    n_mc = len(mol.mcs)
+    assert n_mc > 0
+
+    for i, mc in enumerate(mol.mcs):
+        _new = RDFs_from_atom(mol, _properties=_properties, origin=mc, scope=set(), beta=beta, distance_range=distance_range, step_size=step_size)
+        if i == 0:
+            feature = _new
+        else:
+            feature += _new
+    
+    if not average_mc:
+        return feature
+    return np.divide(feature, n_mc)
+
+def RDF_mc_ligand(mol, ligand_type: str, _properties: list, beta: float, distance_range: tuple, step_size: float, average_mc=True) -> np.ndarray:
+
+    """
+    The feature vector is averaged over all metal centers and all ligands by default.
+    """
+
+    n_mc = len(mol.mcs)
+    ligands = mol.get_specific_ligand(ligand_type)
+    assert n_mc > 0
+
+    for i, mc in enumerate(mol.mcs):
+        for j, ligand in enumerate(ligands):
+            scope = set(mol.ligand_ind[ligand])
+            scope.update([mc])
+            _new = RDFs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, beta=beta, distance_range=distance_range, step_size=step_size)
+            if i+j == 0:
+                feature = _new
+            else:
+                feature += _new
+
