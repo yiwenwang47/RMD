@@ -52,7 +52,7 @@ def RDFs_from_atom(mol, _properties: list, origin: int, scope: set, beta: float,
         for j, R in enumerate(distances):
             _new[j] = radial_distribution_function(array_1, d_from_origin, array_2, beta, R, with_origin=True)
         if i==0:
-            feature = _new
+            feature = _new.copy()
         else:
             feature = np.concatenate((feature, _new))
 
@@ -82,7 +82,7 @@ def RDFs_all_atoms(mol, _properties: list, scope: set, beta: float, distance_ran
         for j, R in enumerate(distances):
             _new[j] = radial_distribution_function(array, matrix, array, beta, R)
         if i==0:
-            feature = _new
+            feature = _new.copy()
         else:
             feature = np.concatenate((feature, _new))
 
@@ -109,7 +109,7 @@ def RDFs_cross_scope(mol, _properties: list, scope_1: set, scope_2:set, beta: fl
         for j, R in enumerate(distances):
             _new[j] = radial_distribution_function(array_1, matrix, array_2, beta, R, cross_scope=True)
         if i==0:
-            feature = _new
+            feature = _new.copy()
         else:
             feature = np.concatenate((feature, _new))
 
@@ -130,7 +130,7 @@ def RDF_mc_all(mol, _properties: list, beta: float, distance_range: tuple, step_
     for i, mc in enumerate(mol.mcs):
         _new = RDFs_from_atom(mol, _properties=_properties, origin=mc, scope=set(), beta=beta, distance_range=distance_range, step_size=step_size)
         if i == 0:
-            feature = _new
+            feature = _new.copy()
         else:
             feature += _new
     
@@ -154,7 +154,36 @@ def RDF_mc_ligand(mol, ligand_type: str, _properties: list, beta: float, distanc
             scope.update([mc])
             _new = RDFs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, beta=beta, distance_range=distance_range, step_size=step_size)
             if i+j == 0:
-                feature = _new
+                feature = _new.copy()
             else:
                 feature += _new
 
+    if average_mc:
+        feature = np.divide(feature, n_mc) 
+    return np.divide(feature, len(ligands))
+
+def RDF_f_ligand(mol, ligand_type: str, _properties: list, beta: float, distance_range: tuple, step_size: float) -> np.ndarray:
+
+    """
+    The feature vector is averaged over all ligands.
+    """
+
+    ligands = mol.get_specific_ligand(ligand_type)
+    for i, ligand in enumerate(ligands):
+        scope = set(mol.ligand_ind[ligand])
+        _new = RDFs_all_atoms(mol, _properties=_properties, scope=scope, beta=beta, distance_range=distance_range, step_size=step_size)
+        if i == 0:
+            feature = _new.copy()
+        else:
+            feature += _new
+        
+    return np.divide(feature, len(ligands))
+
+def RDF_ligand_ligand(mol, ligand1_index: int, ligand2_index: int, _properties: list, beta: float, distance_range: tuple, step_size: float) -> np.ndarray:
+
+    """
+    Cross-scope RDF descriptors. Namely, in any atom pair that counts, the first atom belongs to ligand1, and the second atom belongs to ligand2.
+    """
+
+    scope_1, scope_2 = set(mol.ligand_ind[ligand1_index]), set(mol.ligand_ind[ligand2_index])
+    return RDFs_cross_scope(mol, _properties=_properties, scope_1=scope_1, scope_2=scope_2, beta=beta, distance_range=distance_range, step_size=step_size)
