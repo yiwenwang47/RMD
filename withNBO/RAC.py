@@ -53,6 +53,27 @@ def NBO_names(definitions, option='singlet') -> list:
 
     return names
 
+def CMO_names(definitions, option='singlet') -> list:
+    _notations = ['HOMO5', 'HOMO4', 'HOMO3', 'HOMO2', 'HOMO1', 'HOMO', 'LUMO', 'LUMO1', 'LUMO2', 'LUMO3', 'LUMO4', 'LUMO5']
+    _suffix = {
+        'singlet': '_S',
+        'triplet alpha': '_T_a',
+        'triplet beta': '_T_b'
+    }
+    _notations = [_notaion+_suffix[option] for _notaion in _notations]
+    styles = ['MB', 'M', 'G']
+    def helper(start, scope):
+        _new = []
+        for style in styles:
+            for i in range(len(_notations)):
+                _new += ['_'.join([start, scope, style, _notations[i], str(d)]) for d in range(1, 11)]
+        return _new
+    names = []
+    for definition in definitions:
+        names += helper(definition[0], definition[1])
+
+    return names
+
 def RAC_full(mol, _properties, depth=(1,10), three_d=False) -> np.ndarray:
 
     f_all_MB = RAC_f_all(mol, _properties=_properties, depth=depth, operation='multiply', style='Moreau-Broto', three_d=three_d)
