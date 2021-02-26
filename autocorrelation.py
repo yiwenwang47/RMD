@@ -1,5 +1,5 @@
 # Revised autocorrelation descriptors based on the topology of a molecule.
-# For the sake of simplicity, type hints simple_mol are omitted. 
+# For the sake of simplicity, type hints of simple_mol are omitted. 
 # Any variable named mol should be a simple_mol object, and have the following attributes: graph and distances.
 
 from .elements import property_notation, operation_name, operations
@@ -393,7 +393,7 @@ _average = {
 }
 
 # This section includes higher level RAC functions.
-# From this point on, all these RAC functions will support all three styles.
+# From this point on, all RAC functions will support all three styles.
 
 def multiple_RACs_from_atom(mol, _properties: list, origin: int, scope: set, depth: tuple, operation='multiply', style='Moreau-Broto', three_d=False) -> np.ndarray:
     if style not in ['Moreau-Broto', 'Moran', 'Geary']:
@@ -505,12 +505,12 @@ def RAC_lc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operat
         scope = set(mol.ligand_ind[ligand])
         for lc in lcs:
             ligand_feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=lc, scope=scope, depth=depth, operation=operation, style=style, three_d=three_d)
-        ligand_feature = np.divide(ligand_feature, len(lcs))
+        if average_lc:
+            ligand_feature = np.divide(ligand_feature, len(lcs))
         feature += ligand_feature
 
-    if not average_lc:
-        return feature
     return np.divide(feature, len(ligands))
+
 
 def RAC_f_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', three_d=False) -> np.ndarray:
 

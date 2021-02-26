@@ -38,8 +38,10 @@ class simple_mol(object):
     The coordinating atoms are also listed as lc, which stands for ligand center.
     """
 
-    def __init__(self):
-        self.ligand_types = [] #could be determined later by any custom functions, must be in the same order as self.lcs and self.ligand_ind
+    def __init__(self, complex=True):
+        if complex:
+            self.complex = True
+            self.ligand_types = [] #could be determined later by any custom functions, must be in the same order as self.lcs and self.ligand_ind
         self.properties = {}
     
     def from_file(self, filename: str):
@@ -70,13 +72,14 @@ class simple_mol(object):
         atom, coords = helper(coord_lines[0])
         atoms = [atom]
         coords_all = np.array([coords])
-        self.mcs = []
-        if ismetal(atom):
-            self.mcs.append(0)
+        if self.complex:
+            self.mcs = []
+            if ismetal(atom):
+                self.mcs.append(0)
         for i in range(1, len(coord_lines)):
             atom, coords = helper(coord_lines[i])
             atoms.append(atom)
-            if ismetal(atom):
+            if self.complex and ismetal(atom):
                 self.mcs.append(i)
             coords_all = np.concatenate((coords_all, np.array([coords])), axis=0)
         self.atoms = atoms
@@ -128,7 +131,7 @@ class simple_mol(object):
         if fake_depth != 0:
             self.distance_cheat(fake_depth)
     
-    def parse_all(self):
+    def parse_all(self, complex=True):
 
         """
         A more general case.
@@ -137,9 +140,11 @@ class simple_mol(object):
         self.get_coords()
         del self.text
         self.graph = get_graph_full_scope(self)
-        self.lcs = []
-        self.ligand_ind = []
-        bfs_ligands(self)
+        if complex:
+            self.complex = True
+            self.lcs = []
+            self.ligand_ind = []
+            bfs_ligands(self)
         self.custom_property('topology', self.graph.sum(axis=0))
         self.init_distances()
 
@@ -378,24 +383,6 @@ def get_cycles_molecule(mol: simple_mol) -> list:
     for lc in mol.lcs:
         cycles += get_cycles(copy, lc[0], verbose=False)
     return cycles
-
-def determine_CN_NN(mol: simple_mol):
-
-    """
-    Determines which ligands are CN/NN.
-
-    Example:
-    mol.CN = [0, 1]
-    mol.NN = [0]
-    """
-
-    mol.ligand_types = []
-
-    for _, lc in enumerate(mol.lcs):
-        if sorted([mol.atoms[lc[0]], mol.atoms[lc[1]]]) == ['C', 'N']:
-            mol.ligand_types.append('CN')
-        else:
-            mol.ligand_types.append('NN')
 
 def get_mol(filename: str, depth=5, fake_depth=0) -> simple_mol:
 
