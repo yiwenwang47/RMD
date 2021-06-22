@@ -262,7 +262,7 @@ def AC_cross_scope(mol, style: str, _property: str, scope_1: set, scope_2: set, 
 
 # This section includes revised Moreau-Broto autocorrelation functions.
 
-def MB_from_atom(mol, _property: str, origin: int, scope: set, operation: str, depth: tuple, average: bool, three_d=False) -> np.ndarray:
+def MB_from_atom(mol, _property: str, origin: int, scope: set, operation: str, depth: tuple, average=True, three_d=False) -> np.ndarray:
     
     """
     Limiting the first atom in any atom pair to the given origin atom. 
@@ -302,11 +302,11 @@ def MB_from_atom(mol, _property: str, origin: int, scope: set, operation: str, d
             feature[i] = np.divide(feature[i], n_d)
     
     if operation == 'subtract' or operation == 'divide':
-        return feature[1:] #Because zero depth is trivial
+        return feature[1:] #because zero depth is trivial
 
     return feature
 
-def MB_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, average: bool, three_d=False) -> np.ndarray:
+def MB_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, average=True, three_d=False) -> np.ndarray:
      
     """
     Does not only start from any specific center.
@@ -350,7 +350,7 @@ def MB_all_atoms(mol, _property: str, scope: set, operation: str, depth: tuple, 
 
     return feature
 
-def MB_cross_scope(mol, _property: str, scope_1: set, scope_2: set, operation: str, depth: tuple, average: bool, three_d=False) -> np.ndarray:
+def MB_cross_scope(mol, _property: str, scope_1: set, scope_2: set, operation: str, depth: tuple, average=True, three_d=False) -> np.ndarray:
     
     """
     Cross-scope autocorrelation descriptors. For any valid atom pair, the first atom belongs to scope_1, and the second belongs to scope_2.
@@ -475,18 +475,23 @@ def RAC_mc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operat
     """
 
     n_mc = len(mol.mcs)
-    ligands = mol.get_specific_ligand(ligand_type)
     assert n_mc > 0
     feature = init_feature(len(_properties), operation, depth[1]-depth[0])
+
+    ligands = mol.get_specific_ligand(ligand_type)
+    ligands_set = set()
     for ligand in ligands:
-        for mc in mol.mcs:
-            scope = set(mol.ligand_ind[ligand])
-            scope.update([mc])
-            feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, depth=depth, operation=operation, style=style, three_d=three_d)
+        ligands_set.update(mol.ligand_ind[ligand])
+
+    for mc in mol.mcs:
+        scope = ligands_set.copy()
+        scope.update([mc])
+        feature += multiple_RACs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, depth=depth, operation=operation, style=style, three_d=three_d)
     
     if average_mc:
         feature = np.divide(feature, n_mc) 
-    return np.divide(feature, len(ligands))
+    
+    return feature
 
 def RAC_lc_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', average_lc=True, three_d=False) -> np.ndarray:
 
@@ -528,174 +533,10 @@ def RAC_f_ligand(mol, ligand_type: str, _properties: list, depth: tuple, operati
     
     return np.divide(feature, len(ligands))
 
-def RAC_ligand_ligand(mol, ligand1_index: int, ligand2_index: int, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', three_d=False) -> np.ndarray:
+def RAC_ligand_ligand(mol, scope_1: set, scope_2: set, _properties: list, depth: tuple, operation='multiply', style='Moreau-Broto', three_d=False) -> np.ndarray:
 
     """
-    Cross-scope RAC descriptors. Namely, in any atom pair that counts, the first atom belongs to ligand1, and the second atom belongs to ligand2.
+    Cross-scope RAC descriptors. Namely, in any atom pair that counts, the first atom belongs to scope_1, and the second atom belongs to scope_2.
     """
 
-    scope_1, scope_2 = set(mol.ligand_ind[ligand1_index]), set(mol.ligand_ind[ligand2_index])
     return multiple_RACs_cross_scope(mol=mol, _properties=_properties, scope_1=scope_1, scope_2=scope_2, depth=depth, operation=operation, style=style, three_d=three_d)
-
-# The following section is only about RAC features for CN/NN ligands. 
-# full_RAC_CN_NN follows the RAC-155 list. In our case, it's actually RAC-156.
-# updated_RAC_CN_NN includes a few definition changes and more property options. Experimental.
-
-def RAC_graph(names: list) -> simple_graph:
-
-    """
-    Grouping the RAC features.
-    """
-
-    translation = {
-        '0': 'proximal',
-        '1': 'proximal',
-        '2': 'middle',
-        '3': 'distal',
-        '3plus': 'distal'
-    }
-
-    graph = simple_graph(names)
-    graph.get_graph(translation=translation)
-
-    return graph
-
-def RAC_names_CN_NN(depth=(0,3)) -> list:
-
-    """
-    Get all the feature names.
-    """
-
-    _properties = ['electronegativity', 'atomic number', 'identity', 'covalent radius', 'topology']
-
-    names = []
-
-    def helper(start, scope, operation):
-        _new = []
-        for _property in _properties:
-            if operation == 'multiply' or operation == 'add':
-                _new += [feature_name(start, scope, _property, operation, d) for d in range(depth[0], depth[1]+1)]
-            else:
-                if _property != 'identity':
-                    _new += [feature_name(start, scope, _property, operation, d) for d in range(max(1, depth[0]), depth[1]+1)]
-        return _new
-
-    names += helper('f', 'all', 'multiply')
-    names += helper('mc', 'all', 'multiply')
-    names += helper('lc', 'CN', 'multiply')
-    names += helper('lc', 'NN', 'multiply')
-    names += helper('f', 'CN', 'multiply')
-    names += helper('f', 'NN', 'multiply')
-
-    names += helper('mc', 'all', 'subtract')
-    names += helper('lc', 'CN', 'subtract')
-    names += helper('lc', 'NN', 'subtract')
-
-    return names
-
-def full_RAC_CN_NN(mol, depth=(0,3)) -> np.ndarray:
-
-    """
-    A modified version of the original RAC-155.
-    Discriminating between axial and equatorial ligands is meanningless. In our case, we identify CN and NN ligands instead.
-    The start/scope definitions we adopt are:
-    f/all, mc/all, lc/CN, lc/NN, f/CN, f/NN for product RACs
-    mc/all, lc/CN, lc/NN for difference RACs
-
-    Whenever scope is defined to be one type of ligand, the feature vector is averaged over all corresponding ligands. 
-
-    Also, the original RAC-155 failed to recognize the difference between averaging over all counted atom pairs and not doing so.
-    For example, it would not make sense to average 'identity', but we probably should average 'electronegativity'. 
-    This is specified above in the dictionary _average.
-
-    According to J.P Janet et al.(2017), some of the features are trivial. But for now, we will not exclude them.
-
-    Unfinished.
-    """
-
-    _properties = ['electronegativity', 'atomic number', 'identity', 'covalent radius', 'topology']
-    __properties = ['electronegativity', 'atomic number', 'covalent radius', 'topology']
-
-    _f_all = RAC_f_all(mol=mol, _properties=_properties, operation='multiply', depth=depth)
-    _mc_all = RAC_mc_all(mol=mol, _properties=_properties, operation='multiply', depth=depth)
-    _lc_CN = RAC_lc_ligand(mol=mol, ligand_type='CN', _properties=_properties, operation='multiply', depth=depth, average_lc=True)
-    _lc_NN = RAC_lc_ligand(mol=mol, ligand_type='NN', _properties=_properties, operation='multiply', depth=depth, average_lc=True)
-    _f_CN = RAC_f_ligand(mol=mol, ligand_type='CN', _properties=_properties, operation='multiply', depth=depth)
-    _f_NN = RAC_f_ligand(mol=mol, ligand_type='NN', _properties=_properties, operation='multiply', depth=depth)
-
-    __mc_all = RAC_mc_all(mol=mol, _properties=__properties, operation='subtract', depth=depth)
-    __lc_CN = RAC_lc_ligand(mol=mol, ligand_type='CN', _properties=__properties, operation='subtract', depth=depth, average_lc=True)
-    __lc_NN = RAC_lc_ligand(mol=mol, ligand_type='NN', _properties=__properties, operation='subtract', depth=depth, average_lc=True)
-
-    full_feature = np.concatenate((_f_all, _mc_all, _lc_CN, _lc_NN, _f_CN, _f_NN, __mc_all, __lc_CN, __lc_NN))
-
-    return full_feature
-
-def updated_RAC_names_CN_NN() -> list:
-
-    """
-    Get all the feature names.
-    """
-
-    _properties = ['electronegativity', 'atomic number', 'identity', 'covalent radius', 'topology', 'polarizability', 'vdW radius']
-
-    names = []
-
-    def translate(d):
-        if d==3:
-            return "3plus"
-        else:
-            return str(d)
-
-    def helper(start, scope, operation):
-        _new = []
-        for _property in _properties:
-            if operation == 'multiply' or operation == 'add':
-                _new += [feature_name(start, scope, _property, operation, translate(d)) for d in range(4)]
-            else:
-                if _property != 'identity':
-                    _new += [feature_name(start, scope, _property, operation, translate(d)) for d in range(1, 4)]
-        return _new
-
-    names += helper('f', 'all', 'multiply')
-    names += helper('mc', 'CN', 'multiply')
-    names += helper('mc', 'NN', 'multiply')
-    names += helper('lc', 'CN', 'multiply')
-    names += helper('lc', 'NN', 'multiply')
-    names += helper('f', 'CN', 'multiply')
-    names += helper('f', 'NN', 'multiply')
-
-    names += helper('mc', 'CN', 'subtract')
-    names += helper('mc', 'NN', 'subtract')
-    names += helper('lc', 'CN', 'subtract')
-    names += helper('lc', 'NN', 'subtract')
-
-    return names
-
-def updated_RAC_CN_NN(mol, depth=(0,3)) -> np.ndarray:
-
-    """
-    An updated version. Big difference: 3plus stands for depth=3 and greater. Call mol.distance_cheat(fake_depth=3) first. 
-    Another big difference: replaced mc/all with mc/CN and mc/NN.
-    Experimental, so more properties are included.
-    """
-
-    _properties = ['electronegativity', 'atomic number', 'identity', 'covalent radius', 'topology', 'polarizability', 'vdW radius']
-    __properties = ['electronegativity', 'atomic number', 'covalent radius', 'topology', 'polarizability', 'vdW radius']
-
-    _f_all = RAC_f_all(mol=mol, _properties=_properties, operation='multiply', depth=depth)
-    _mc_CN = RAC_mc_ligand(mol=mol, ligand_type='CN', _properties=_properties, operation='multiply', depth=depth)
-    _mc_NN = RAC_mc_ligand(mol=mol, ligand_type='NN', _properties=_properties, operation='multiply', depth=depth)
-    _lc_CN = RAC_lc_ligand(mol=mol, ligand_type='CN', _properties=_properties, operation='multiply', depth=depth, average_lc=True)
-    _lc_NN = RAC_lc_ligand(mol=mol, ligand_type='NN', _properties=_properties, operation='multiply', depth=depth, average_lc=True)
-    _f_CN = RAC_f_ligand(mol=mol, ligand_type='CN', _properties=_properties, operation='multiply', depth=depth)
-    _f_NN = RAC_f_ligand(mol=mol, ligand_type='NN', _properties=_properties, operation='multiply', depth=depth)
-
-    __mc_CN = RAC_mc_ligand(mol=mol, ligand_type='CN', _properties=__properties, operation='subtract', depth=depth)
-    __mc_NN = RAC_mc_ligand(mol=mol, ligand_type='NN', _properties=__properties, operation='subtract', depth=depth)
-    __lc_CN = RAC_lc_ligand(mol=mol, ligand_type='CN', _properties=__properties, operation='subtract', depth=depth, average_lc=True)
-    __lc_NN = RAC_lc_ligand(mol=mol, ligand_type='NN', _properties=__properties, operation='subtract', depth=depth, average_lc=True)
-
-    full_feature = np.concatenate((_f_all, _mc_CN, _mc_NN, _lc_CN, _lc_NN, _f_CN, _f_NN, __mc_CN, __mc_NN, __lc_CN, __lc_NN))
-
-    return full_feature

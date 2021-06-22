@@ -5,7 +5,7 @@ def radial_distribution_function(array_1: np.ndarray, d_matrix: np.ndarray, arra
     beta: float, R: float, with_origin=False, cross_scope=False) -> np.float:
 
     """
-    A very simple radial distribution function. If starts from one atom, set with_origin=True.
+    A very simple radial distribution function. If starting from one atom, set with_origin=True.
     """
 
     assert not (with_origin and cross_scope)
@@ -145,22 +145,24 @@ def RDF_mc_ligand(mol, ligand_type: str, _properties: list, beta: float, distanc
     """
 
     n_mc = len(mol.mcs)
-    ligands = mol.get_specific_ligand(ligand_type)
     assert n_mc > 0
-
+    ligands = mol.get_specific_ligand(ligand_type)
+    ligands_set = set()
+    for ligand in ligands:
+        ligands_set.update(mol.ligand_ind[ligand])
+   
     for i, mc in enumerate(mol.mcs):
-        for j, ligand in enumerate(ligands):
-            scope = set(mol.ligand_ind[ligand])
-            scope.update([mc])
-            _new = RDFs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, beta=beta, distance_range=distance_range, step_size=step_size)
-            if i+j == 0:
-                feature = _new.copy()
-            else:
-                feature += _new
+        scope = ligands_set.copy()
+        scope.update([mc])
+        _new = RDFs_from_atom(mol, _properties=_properties, origin=mc, scope=scope, beta=beta, distance_range=distance_range, step_size=step_size)
+        if i == 0:
+            feature = _new.copy()
+        else:
+            feature += _new
 
     if average_mc:
         feature = np.divide(feature, n_mc) 
-    return np.divide(feature, len(ligands))
+    return feature
 
 def RDF_f_ligand(mol, ligand_type: str, _properties: list, beta: float, distance_range: tuple, step_size: float) -> np.ndarray:
 
@@ -179,11 +181,10 @@ def RDF_f_ligand(mol, ligand_type: str, _properties: list, beta: float, distance
         
     return np.divide(feature, len(ligands))
 
-def RDF_ligand_ligand(mol, ligand1_index: int, ligand2_index: int, _properties: list, beta: float, distance_range: tuple, step_size: float) -> np.ndarray:
+def RDF_ligand_ligand(mol, scope_1: set, scope_2: set, _properties: list, beta: float, distance_range: tuple, step_size: float) -> np.ndarray:
 
     """
-    Cross-scope RDF descriptors. Namely, in any atom pair that counts, the first atom belongs to ligand1, and the second atom belongs to ligand2.
+    Cross-scope RDF descriptors. Namely, in any atom pair that counts, the first atom belongs to scope_1, and the second atom belongs to scope_2.
     """
 
-    scope_1, scope_2 = set(mol.ligand_ind[ligand1_index]), set(mol.ligand_ind[ligand2_index])
     return RDFs_cross_scope(mol, _properties=_properties, scope_1=scope_1, scope_2=scope_2, beta=beta, distance_range=distance_range, step_size=step_size)

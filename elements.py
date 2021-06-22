@@ -169,14 +169,14 @@ property_notation = {
     'vdW radius': 'rv',
     'Weighted energy': 'Enao',
     'Natural charge': 'Q',
-    'Valence s occupancy': 'Occ_s',
-    'Valence s energy': 'E_s',
-    'Valence px occupancy': 'Occ_px',
-    'Valence px energy': 'E_px',
-    'Valence py occupancy': 'Occ_py',
-    'Valence py energy': 'E_py',
-    'Valence pz occupancy': 'Occ_pz',
-    'Valence pz energy': 'E_pz',
+    'Valence s occupancy': 'occ_s',
+    'Valence s energy': 'nrg_s',
+    'Valence px occupancy': 'occ_px',
+    'Valence px energy': 'nrg_px',
+    'Valence py occupancy': 'occ_py',
+    'Valence py energy': 'nrg_py',
+    'Valence pz occupancy': 'occ_pz',
+    'Valence pz energy': 'nrg_pz',
     'Natural Spin Density': 'sd'
 }
 
