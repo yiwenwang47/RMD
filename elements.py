@@ -167,17 +167,17 @@ property_notation = {
     'topology': "T",
     'polarizability': "alpha",
     'vdW radius': 'rv',
-    'Weighted energy': 'Enao',
-    'Natural charge': 'Q',
-    'Valence s occupancy': 'occ_s',
-    'Valence s energy': 'nrg_s',
-    'Valence px occupancy': 'occ_px',
-    'Valence px energy': 'nrg_px',
-    'Valence py occupancy': 'occ_py',
-    'Valence py energy': 'nrg_py',
-    'Valence pz occupancy': 'occ_pz',
-    'Valence pz energy': 'nrg_pz',
-    'Natural Spin Density': 'sd'
+    # 'Weighted energy': 'Enao',
+    # 'Natural charge': 'Q',
+    # 'Valence s occupancy': 'occ_s',
+    # 'Valence s energy': 'nrg_s',
+    # 'Valence px occupancy': 'occ_px',
+    # 'Valence px energy': 'nrg_px',
+    # 'Valence py occupancy': 'occ_py',
+    # 'Valence py energy': 'nrg_py',
+    # 'Valence pz occupancy': 'occ_pz',
+    # 'Valence pz energy': 'nrg_pz',
+    # 'Natural Spin Density': 'sd'
 }
 
 # The following variables are still related to property calculation, although not necessarily directly relate to any element.
