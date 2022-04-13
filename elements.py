@@ -1,7 +1,7 @@
 import numpy as np
 
-# Variables in this file are directly copied from https://github.com/hjkgrp/molSimplify/blob/31ae03eec6eaa1d3d7946f6413d756051f8feea5/molSimplify/Classes/globalvars.py
-# Slight modifications might be added in the future.
+# Certain variables in this file are directly copied from https://github.com/hjkgrp/molSimplify/blob/31ae03eec6eaa1d3d7946f6413d756051f8feea5/molSimplify/Classes/globalvars.py
+# Slight modifications added.
 
 # Dictionary containing atomic mass, atomic number, covalent radius, number of valence electrons
 # Data from http://www.webelements.com/ (last accessed May 13th 2015)
@@ -167,22 +167,9 @@ property_notation = {
     'topology': "T",
     'polarizability': "alpha",
     'vdW radius': 'rv',
-    # 'Weighted energy': 'Enao',
-    # 'Natural charge': 'Q',
-    # 'Valence s occupancy': 'occ_s',
-    # 'Valence s energy': 'nrg_s',
-    # 'Valence px occupancy': 'occ_px',
-    # 'Valence px energy': 'nrg_px',
-    # 'Valence py occupancy': 'occ_py',
-    # 'Valence py energy': 'nrg_py',
-    # 'Valence pz occupancy': 'occ_pz',
-    # 'Valence pz energy': 'nrg_pz',
-    # 'Natural Spin Density': 'sd'
 }
 
-# The following variables are still related to property calculation, although not necessarily directly relate to any element.
-# They are moved here because in the future, more descriptors will be included.
-
+# The following variables are still related to property calculation.
 operations = {
     'add': lambda x, y: np.add(x, y),
     'subtract': lambda x, y: np.add(x, -y),
