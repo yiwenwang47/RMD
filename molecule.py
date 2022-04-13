@@ -215,6 +215,8 @@ def get_bond_cutoff(a1: str, a2: str) -> float:
     # Strict cutoff for Iodine
     if a1 == 'I' and a2 == 'I':
         cutoff = 3
+    if a1 == 'Ir' and a2 == 'N':
+        cutoff = 2.5
     # elif a1 == 'I' or a2 == 'I':
     #     cutoff = 0.95 * (r1 + r2)
     return cutoff
