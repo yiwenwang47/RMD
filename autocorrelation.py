@@ -3,7 +3,6 @@
 # Any variable named mol should be a simple_mol object, and have the following attributes: graph and distances.
 
 from .elements import property_notation, operation_name, operations
-from .utils import simple_graph, create_feature_graph
 import numpy as np
 
 class StyleError(Exception):
