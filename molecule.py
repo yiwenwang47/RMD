@@ -208,6 +208,8 @@ def get_bond_cutoff(a1: str, a2: str) -> float:
     cutoff = 1.15 * (r1 + r2)
     if a1 == 'C' and a2 != 'H':
         cutoff = min(2.75, cutoff)
+    if a1 == 'C' and a2 == 'Cl':
+        cutoff = 2.1
     if a1 == 'H' and ismetal(a2):
         cutoff = 1.1 * (r1 + r2)
     if a2 == 'H' and ismetal(a1):
