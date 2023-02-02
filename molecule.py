@@ -8,7 +8,6 @@ class simple_atom(object):
 
     """
     A very simple atom object. Intended for much more complicated descriptors.
-    For now, only special properties will be carried by this object.
     """
 
     def __init__(self, element: str):
@@ -38,10 +37,10 @@ class simple_mol(object):
     The coordinating atoms are also listed as lc, which stands for ligand center.
     """
 
-    def __init__(self, complex=True):
+    def __init__(self, complex=False):
         if complex:
             self.complex = True
-            self.ligand_types = [] #could be determined later by any custom functions, must be in the same order as self.lcs and self.ligand_ind
+            self.ligand_types = [] #could be determined later, must be in the same order as self.lcs and self.ligand_ind
         self.properties = {}
     
     def from_file(self, filename: str):
@@ -243,7 +242,7 @@ def get_cutoffs(atoms: list) -> defaultdict:
 def get_graph_full_scope(mol: simple_mol) -> np.ndarray:
 
     """
-    If the indices of the ligand atoms are not available, use this function.
+    Creates adjacency matrix.
     """
 
     n = mol.natoms
@@ -387,15 +386,3 @@ def get_cycles_molecule(mol: simple_mol) -> list:
     for lc in mol.lcs:
         cycles += get_cycles(copy, lc[0], verbose=False)
     return cycles
-
-def get_mol(filename: str, depth=5, fake_depth=0) -> simple_mol:
-
-    """
-    Creates a simple_mol object from a xyz file.
-    """
-
-    mol = simple_mol()
-    mol.from_file(filename)
-    mol.parse_all()
-    mol.get_all_distances(depth, fake_depth=fake_depth)
-    return mol
