@@ -158,18 +158,6 @@ class simple_mol(object):
             bonded.update(self.get_bonded_atoms(i))
         return list(bonded)
 
-    def get_specific_ligand(self, ligand_type: str) -> list:
-
-        """
-        Returns a list of ligands that belong to the given type.
-        For example, 
-        [0,1]
-        means the first and second ligands are the given type.
-        This could be used to access self.lcs and self.ligand_ind to get the indices of ligand centers and all ligand atoms.
-        """
-
-        return [i for i, x in enumerate(self.ligand_types) if x == ligand_type]
-
     def populate_property(self, _property: str):
         if _property in properties and _property not in self.properties:
             self.properties[_property] = np.zeros(self.natoms)
@@ -177,15 +165,8 @@ class simple_mol(object):
             for i in range(self.natoms):
                 self.properties[_property][i] = _func(self.atoms[i])
 
-    def custom_property(self, _property: str, values):
-        
-        """
-        Apart from elemental properties, each atom could have properties from other calculations. 
-        """
 
-        self.properties[_property] = values
-
-# These following functions are devoted to figuring out the connectivities and distances.
+# Connectivities and distances.
 # Following the conventional approach of setting bond length cutoffs.
 
 _get = lambda l, indices: [l[i] for i in indices]

@@ -40,17 +40,16 @@ def init_feature(num_properties, operation, d):
         d -= 1
     return np.zeros((d+1) * num_properties).astype(np.float)
 
-# This function is written in a very naive way. Will only be called in special cases.
+# Dummy function. Only called in special cases.
 def property_correlation(mol, _property: str, ind1: int, ind2: int, operation: str) -> np.float:
     assert _property in mol.properties
     p1, p2 = mol.properties[_property][ind1],  mol.properties[_property][ind2]
     return operations[operation](p1, p2)
 
-# Moreau-Broto autocorrelation calculated by matrix multiplication.
+# Moreau-Broto autocorrelation via matrix multiplication.
 def Moreau_Broto_ac(array_1: np.ndarray, binary_matrix: np.ndarray, array_2: np.ndarray, operation: str, with_origin=False, cross_scope=False) -> np.float:
 
     """
-    Although the original Moreau-Broto autocorrelation only considers product aurtocorrelation, I try to accommodate all four operations.
     By default, the binary_matrix is assumed to be 2-d and symmetric. If with_origin = True, binary_matrix should be a 1-d array.
     This does not deal with potential problems brought by zero-ish elemental property values.
     """
